@@ -16,6 +16,7 @@ public sealed partial class TrafficVehicle : CharacterBody3D
     private readonly List<Vector3> _waypoints = [];
     private Vector3 _routeDirection = Vector3.Forward;
     private float _speed;
+    private IntersectionTrafficController? _reservedIntersection;
     private uint _routeSeed;
     private uint _maneuverIndex;
     private SpotLight3D? _leftHeadlight;
@@ -88,14 +89,28 @@ public sealed partial class TrafficVehicle : CharacterBody3D
         var obstacleFactor = Mathf.Clamp((centerDistance - 1.15f) / (SensorLength - 1.15f), 0, 1);
         var targetSpeed = (cornering ? CornerSpeed : CruiseSpeed) * obstacleFactor;
         if (centerDistance < 1.3f) targetSpeed = 0;
+        if (_reservedIntersection is not null &&
+            (!IsInstanceValid(_reservedIntersection) ||
+             !_reservedIntersection.HasVehicleReservation(this)))
+            _reservedIntersection = null;
+
         var axis = IntersectionTrafficController.AxisFor(forward);
-        var intersection = IntersectionTrafficController.FindApproaching(GetTree(), GlobalPosition, forward,
-            out var stopDistance);
-        if (intersection?.ShouldVehicleStop(axis, stopDistance) == true)
+        float stopDistance = float.MaxValue;
+        var intersection = _reservedIntersection ??
+            IntersectionTrafficController.FindApproaching(GetTree(), GlobalPosition, forward, out stopDistance);
+        if (intersection is not null)
         {
-            var stopFactor = Mathf.Clamp((stopDistance - .45f) / 4.5f, 0f, 1f);
-            targetSpeed = MathF.Min(targetSpeed, CruiseSpeed * stopFactor);
-            if (stopDistance < .7f) targetSpeed = 0;
+            if (!intersection.MayVehicleEnter(this, axis, stopDistance))
+            {
+                var stopFactor = Mathf.Clamp((stopDistance - .65f) / 4.5f, 0f, 1f);
+                targetSpeed = MathF.Min(targetSpeed, CruiseSpeed * stopFactor);
+                if (stopDistance < .9f) targetSpeed = 0f;
+                TaskState = TrafficTaskState.Braking;
+            }
+            else if (intersection.HasVehicleReservation(this))
+            {
+                _reservedIntersection = intersection;
+            }
         }
         var previousSpeed = _speed;
         _speed = Mathf.MoveToward(_speed, targetSpeed,
@@ -141,6 +156,9 @@ public sealed partial class TrafficVehicle : CharacterBody3D
 
     public override void _ExitTree()
     {
+        if (_reservedIntersection is not null && IsInstanceValid(_reservedIntersection))
+            _reservedIntersection.ReleaseVehicle(this);
+        _reservedIntersection = null;
         if (_cycle is null) return;
         _cycle.DayStarted -= OnDayStarted;
         _cycle.NightStarted -= OnNightStarted;
