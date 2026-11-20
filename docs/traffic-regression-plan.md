@@ -25,11 +25,30 @@ Teste na **branch de trabalho**, não na `main`. Para cada item, observe por 1�
 7. **Streaming:** passe repetidamente da área detalhada para outra e retorne. O ciclo do semáforo não deve reiniciar; a lógica de prioridade e a reserva de cruzamento não devem desaparecer só porque os postes foram reconstruídos.
 8. **Travamento prolongado:** observe a rua por aproximadamente dois minutos. Se algum carro permanecer imóvel ou ficar girando no mesmo lugar, registre vídeo com visão suficiente para identificar obstáculos, a faixa, as luzes e o estado dos outros NPCs.
 
+## Teste específico de desvio recíproco (RVO2 / família ORCA)
+
+O solver de desvio local foi ativado **somente nos pedestres**. O grafo de calçadas, a preferência de rota e os controladores de semáforo continuam responsáveis pelos caminhos e pelas permissões de travessia. RVO não constrói um NavMesh e não substitui obstáculos físicos.
+
+- Observe dois NPCs caminhando em sentidos opostos no mesmo trecho de calçada: eles devem antecipar o encontro, reduzir a velocidade ou desviar, sem atravessar paredes ou entrar na rua.
+- Observe pedestres parados (atividade, susto, espera na faixa): os demais devem contorná-los quando houver espaço.
+- Observe um grupo próximo ao sinal: ninguém deve abandonar o meio-fio para entrar numa faixa com veículos em movimento.
+- Observe um pedestre assustado na travessia: a regra do semáforo e a rota marcada têm prioridade sobre a sugestão de desvio local.
+- Para comparar, na árvore **Remote** do Godot selecione `PedestrianSpawner` e alterne `EnableReciprocalAvoidance` entre ligado e desligado. Esse controle vale para os pedestres já carregados e para os próximos. Registre vídeo curto com cada configuração.
+- Se os NPCs pararem todos no mesmo ponto, colidirem na calçada ou andarem fora da rota, registre o caso: compilação C# não testa o servidor de navegação durante execução real.
+
+## Escala dos assets preservada
+
+**Esta rodada não muda o tamanho de nenhum personagem, veículo, esqueleto ou GLB.** O atributo `Radius` de `NavigationAgent3D` delimita espaço de prevenção de colisões, não redimensiona o modelo visível.
+
+Há vários assets no repositório, incluindo `Assets/World/Props/bench.glb`, duas variantes de `furniture-bench-cushion` e duas cercas (`fence-low.glb`, `construction-fence.glb`).
+
+A dimensão dos bancos **já é normalizada por código** em `UrbanLotDecorator.AddAsset` via `VisualShadowSupport.NormalizeHorizontalLength(instance, 1.25f)`. As cercas ainda usam fatores fixos, por exemplo `0.72f` e `0.8f`, nas chamadas a `AddAsset`. Portanto, é possível corrigir boa parte das proporções de móveis e cercas por C# ou parâmetros de cena **sem abrir o Blender**; Blender só passa a ser necessário se a geometria original, pivô ou transformações importadas estiverem inadequados. Antes de mexer nos fatores, medir a malha carregada e comparar com o espaço real disponível em uma célula de 4 unidades.
+
 ## Sinais de regressão que ainda exigem correção
 
 - Veículos controlados pelo jogador não seguem necessariamente as regras da IA: podem entrar num cruzamento sem reserva.
 - A reserva atual de cruzamento é **conservadora** (um carro de IA por vez), portanto a capacidade de tráfego pode ser menor do que a de uma cidade real.
-- Ainda não há ORCA completo, cálculo de filas por interseção, prioridade de conversão por trajetórias conflitantes ou simulação visual fora da região carregada.
+- Há desvio recíproco RVO2 para pedestres, mas não um planejador ORCA completo para multidões, carros, obstáculos estáticos ou regiões descarregadas; não há cálculo de filas por interseção nem prioridade de conversão por trajetórias não conflitantes.
 - A segurança depende da física e escala real dos assets, que um `dotnet build` não testa.
 
 ## Como reportar
