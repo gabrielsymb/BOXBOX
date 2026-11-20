@@ -18,6 +18,14 @@ public sealed partial class OpenWorldStreamer : Node3D
     private Vector2I _lastCenter = new(int.MaxValue, int.MaxValue);
     public PlayerController? Player { get; set; }
 
+    public bool IsCellLoaded(Vector3 position)
+    {
+        var coordinate = new Vector2I(
+            Mathf.FloorToInt(position.X / CellSize),
+            Mathf.FloorToInt(position.Z / CellSize));
+        return _loaded.TryGetValue(coordinate, out var cell) && !cell.Node.IsQueuedForDeletion();
+    }
+
     public override void _Ready() => ThreadedSceneCache.Request(WorldAssetCatalog.Current.AllPaths);
 
     public override void _ExitTree()
