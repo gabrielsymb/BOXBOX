@@ -100,6 +100,7 @@ public sealed partial class IntersectionTrafficController : Node3D
         CleanupVehicleReservation();
         if (_reservedVehicle == vehicle) return true;
         if (_reservedVehicle is not null || ShouldVehicleStop(axis, distanceToStopLine)) return false;
+        if (distanceToStopLine <= 2.8f && IsJunctionOccupiedByVehicle(vehicle)) return false;
 
         // Do not monopolize the junction while still far away from the stop line.
         if (distanceToStopLine > 2.8f) return true;
@@ -155,14 +156,32 @@ public sealed partial class IntersectionTrafficController : Node3D
         _reservedVehicleEntered = false;
     }
 
-    public bool CanPedestrianStart(TrafficAxis crossedVehicleAxis, float crossingSeconds = 4.5f)
+    public bool CanPedestrianStart(TrafficAxis crossedVehicleAxis, float crossingSeconds = 7.5f)
     {
         CleanupVehicleReservation();
-        // Check the scheduled phase, not the overridden visual state: active
-        // crossings can force the lens red without opening a new walk window.
+        // A painted crosswalk is about 8.5m wide. A 4.5-second start
+        // window left slower pedestrians in the roadway at the next green.
+        // Do not send a pedestrian into a junction occupied by a player car.
         return _reservedVehicle is null &&
+            !IsJunctionOccupiedByVehicle(null) &&
             ScheduledStateFor(crossedVehicleAxis) == TrafficLightState.Red &&
             _remaining >= crossingSeconds;
+    }
+
+    private bool IsJunctionOccupiedByVehicle(TrafficVehicle? entering)
+    {
+        foreach (var group in new[] { "traffic_vehicle", "driveable_car" })
+        foreach (var node in GetTree().GetNodesInGroup(group))
+        {
+            if (node is not CharacterBody3D vehicle || vehicle == entering ||
+                !IsInstanceValid(vehicle) || vehicle.IsQueuedForDeletion()) continue;
+            var offset = vehicle.GlobalPosition - GlobalPosition;
+            offset.Y = 0;
+            // Cars waiting at the stop line must not count as occupying the
+            // junction; otherwise both axes can deadlock indefinitely.
+            if (offset.LengthSquared() < 4.2f * 4.2f) return true;
+        }
+        return false;
     }
 
     public void BeginPedestrianCrossing(TrafficAxis axis)
