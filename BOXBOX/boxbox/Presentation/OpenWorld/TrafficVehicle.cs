@@ -16,9 +16,6 @@ public sealed partial class TrafficVehicle : CharacterBody3D
     private readonly List<Vector3> _waypoints = [];
     private Vector3 _routeDirection = Vector3.Forward;
     private float _speed;
-    private float _avoidOffset;
-    private Vector3 _avoidTarget;
-    private double _blockedSeconds;
     private uint _routeSeed;
     private uint _maneuverIndex;
     private SpotLight3D? _leftHeadlight;
@@ -71,20 +68,14 @@ public sealed partial class TrafficVehicle : CharacterBody3D
         EnsureRoute();
 
         var forward = -GlobalTransform.Basis.Z.Normalized();
-        SenseObstacles(forward, out var leftDistance, out var centerDistance, out var rightDistance);
-        UpdateAvoidance(delta, leftDistance, centerDistance, rightDistance);
+        // Keep traffic in its designated lane. A stopped queue is not
+        // permission to overtake into opposing traffic or a crosswalk.
+        var centerDistance = MathF.Min(CastSensor(forward), DistanceToLeadingVehicle(forward));
+        TaskState = centerDistance < SensorLength ? TrafficTaskState.Braking : TrafficTaskState.Cruising;
 
         var target = _waypoints[0];
         var desired = target - GlobalPosition;
         desired.Y = 0;
-        var right = forward.Cross(Vector3.Up).Normalized();
-        // Avoidance is a point ahead in the neighbouring part of the lane. The vehicle
-        // must steer its body towards it; its velocity is never translated sideways.
-        if (MathF.Abs(_avoidOffset) > 0.01f)
-        {
-            _avoidTarget = GlobalPosition + forward * 5.5f + right * _avoidOffset;
-            desired = _avoidTarget - GlobalPosition;
-        }
         if (desired.LengthSquared() > 0.001f) desired = desired.Normalized();
 
         var signedAngle = forward.SignedAngleTo(desired, Vector3.Up);
@@ -192,29 +183,22 @@ public sealed partial class TrafficVehicle : CharacterBody3D
         _maneuverIndex++;
     }
 
-    private void UpdateAvoidance(double delta, float left, float center, float right)
+    private float DistanceToLeadingVehicle(Vector3 forward)
     {
-        if (center < 2.8f && _speed < 1.2f) _blockedSeconds += delta;
-        else _blockedSeconds = Math.Max(0, _blockedSeconds - delta * 2);
-
-        if (_blockedSeconds > 2.2 && MathF.Max(left, right) > center + 1.6f)
+        var distance = SensorLength;
+        foreach (var node in GetTree().GetNodesInGroup("traffic_vehicle"))
         {
-            TaskState = TrafficTaskState.Avoiding;
-            var desiredOffset = left > right ? -0.72f : 0.72f;
-            _avoidOffset = Mathf.MoveToward(_avoidOffset, desiredOffset, 1.2f * (float)delta);
+            if (node is not TrafficVehicle other || other == this || !IsInstanceValid(other)) continue;
+            var displacement = other.GlobalPosition - GlobalPosition;
+            displacement.Y = 0;
+            var ahead = displacement.Dot(forward);
+            if (ahead <= 0 || ahead >= SensorLength + 2.4f) continue;
+            var lateral = displacement - forward * ahead;
+            if (lateral.LengthSquared() > 1.5f * 1.5f) continue;
+            // Approximate the front-to-rear clearance, not centre distance.
+            distance = MathF.Min(distance, MathF.Max(0f, ahead - 2.4f));
         }
-        else
-        {
-            TaskState = center < SensorLength ? TrafficTaskState.Braking : TrafficTaskState.Cruising;
-            _avoidOffset = Mathf.MoveToward(_avoidOffset, 0, 0.8f * (float)delta);
-        }
-    }
-
-    private void SenseObstacles(Vector3 forward, out float left, out float center, out float right)
-    {
-        center = CastSensor(forward);
-        left = CastSensor(new Basis(Vector3.Up, Mathf.DegToRad(24)) * forward);
-        right = CastSensor(new Basis(Vector3.Up, Mathf.DegToRad(-24)) * forward);
+        return distance;
     }
 
     private float CastSensor(Vector3 direction)
