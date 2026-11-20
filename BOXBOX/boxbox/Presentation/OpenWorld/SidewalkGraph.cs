@@ -63,13 +63,25 @@ public static class SidewalkGraph
         var angle = seed * 2.399963f;
         var probe = focus + new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * 26f;
         var route = BuildRoute(probe, seed);
+        // Choose a location along a sidewalk segment instead of repeatedly
+        // spawning at the same discrete waypoint. Never place spawns on
+        // designated crosswalk segments.
         var nearest = route[0].Position;
         var nearestDistance = float.MaxValue;
-        foreach (var waypoint in route)
+        for (var index = 0; index < route.Count; index++)
         {
-            var distance = waypoint.Position.DistanceSquaredTo(probe);
+            var from = route[index];
+            var to = route[(index + 1) % route.Count];
+            if (from.Kind == SidewalkWaypointKind.Crosswalk ||
+                to.Kind == SidewalkWaypointKind.Crosswalk) continue;
+            var segment = to.Position - from.Position;
+            var lengthSquared = segment.LengthSquared();
+            if (lengthSquared < 0.01f) continue;
+            var factor = Mathf.Clamp((probe - from.Position).Dot(segment) / lengthSquared, 0.1f, 0.9f);
+            var candidate = from.Position + segment * factor;
+            var distance = candidate.DistanceSquaredTo(probe);
             if (distance >= nearestDistance) continue;
-            nearest = waypoint.Position;
+            nearest = candidate;
             nearestDistance = distance;
         }
         return nearest + Vector3.Up * 0.08f;
