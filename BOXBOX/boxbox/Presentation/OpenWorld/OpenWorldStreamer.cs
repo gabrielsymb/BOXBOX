@@ -159,14 +159,17 @@ public sealed partial class OpenWorldStreamer : Node3D
             roadPath, plan.IsIntersection ? "WideIntersection" : "WideRoad", roadPosition, roadScale);
         if (!plan.IsIntersection && verticalRoad) road.RotateY(Mathf.Pi / 2f);
         cell.AddChild(road);
-        if (!detailed || !plan.IsIntersection) return;
+        if (!plan.IsIntersection) return;
 
+        // Traffic law stays available for nearby low-detail road cells.
+        // Detail controls lamp meshes and decoration, not the right of way.
         var intersection = new IntersectionTrafficController
         {
             Name = "SynchronizedIntersection",
             Position = new Vector3(2, 0, 2)
         };
         cell.AddChild(intersection);
+        if (!detailed) return;
         AddTrafficSignal(cell, intersection, TrafficAxis.NorthSouth,
             "TrafficLightNorthWest", new Vector3(-1.3f, 0, -1.3f), 0);
         AddTrafficSignal(cell, intersection, TrafficAxis.EastWest,
