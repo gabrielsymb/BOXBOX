@@ -122,6 +122,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         var vertical = IsOnFloor() ? 0f : Velocity.Y - Gravity * (float)delta;
         Velocity = new Vector3(desired.X * speed, vertical, desired.Z * speed);
         MoveAndSlide();
+        ReleaseCrossingAfterLeavingRoad();
     }
 
     public void NotifyDanger(Vector3 source, float seconds = 4.5f)
@@ -129,14 +130,14 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         _dangerSource = source;
         _fleeRemaining = Math.Max(_fleeRemaining, seconds);
         _activityRemaining = 0;
-        FinishCrossing();
+        // Preserve the crossing reservation while fleeing on the roadway.
     }
 
     public void NotifyGunshot(Vector3 source)
     {
         _dangerSource = source;
         _activityRemaining = 0;
-        FinishCrossing();
+        // A startled NPC must not instantly clear an occupied crosswalk.
         var roll = Hash01(_seed, 5000 + _decisionIndex++);
         if (roll < .45f)
         {
@@ -173,10 +174,15 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             toTarget.Y = 0;
         }
 
-        if (target.Kind == SidewalkWaypointKind.Crosswalk && State != PedestrianState.Crossing)
+        if (_crossingController is not null &&
+            (!IsInstanceValid(_crossingController) || !_crossingController.IsInsideTree()))
+            _crossingController = null;
+        if (target.Kind == SidewalkWaypointKind.Crosswalk && _crossingController is null)
         {
             var controller = IntersectionTrafficController.FindNearestCrossing(GetTree(), GlobalPosition.Lerp(target.Position, .5f));
-            if (controller is not null && !controller.CanPedestrianStart(target.CrossedVehicleAxis))
+            // Missing controller means the surrounding city cell is still
+            // streaming in; an unregulated crossing is not safe by default.
+            if (controller is null || !controller.CanPedestrianStart(target.CrossedVehicleAxis))
             {
                 State = PedestrianState.WaitingCrosswalk;
                 PlayAnimation("idle");
@@ -184,10 +190,10 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             }
             _crossingController = controller;
             _crossingAxis = target.CrossedVehicleAxis;
-            controller?.BeginPedestrianCrossing(_crossingAxis);
+            controller.BeginPedestrianCrossing(_crossingAxis);
             State = PedestrianState.Crossing;
         }
-        else if (State != PedestrianState.Crossing) State = PedestrianState.Walking;
+        else State = _crossingController is null ? PedestrianState.Walking : PedestrianState.Crossing;
 
         PlayAnimation("walk");
         var hurry = State == PedestrianState.Crossing &&
@@ -249,6 +255,23 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             distance = candidate;
         }
         return nearest;
+    }
+
+    private void ReleaseCrossingAfterLeavingRoad()
+    {
+        if (_crossingController is null || State == PedestrianState.Crossing) return;
+        if (!IsInstanceValid(_crossingController) || !_crossingController.IsInsideTree())
+        {
+            _crossingController = null;
+            return;
+        }
+
+        var offset = GlobalPosition - _crossingController.GlobalPosition;
+        var across = _crossingAxis == TrafficAxis.NorthSouth ? MathF.Abs(offset.X) : MathF.Abs(offset.Z);
+        // The sidewalk begins outside the approximately eight-unit wide road.
+        // Keep the junction protected if danger causes a pedestrian to flee
+        // along the street instead of continuing to the opposite pavement.
+        if (across > 5.3f) FinishCrossing();
     }
 
     private void FinishCrossing()
