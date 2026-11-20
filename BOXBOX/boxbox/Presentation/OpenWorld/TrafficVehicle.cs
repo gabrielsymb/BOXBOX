@@ -94,13 +94,15 @@ public sealed partial class TrafficVehicle : CharacterBody3D
              !_reservedIntersection.HasVehicleReservation(this)))
             _reservedIntersection = null;
 
-        var axis = IntersectionTrafficController.AxisFor(forward);
+        var approachAxis = IntersectionTrafficController.AxisFor(forward);
         float stopDistance = float.MaxValue;
-        var intersection = _reservedIntersection ??
-            IntersectionTrafficController.FindApproaching(GetTree(), GlobalPosition, forward, out stopDistance);
+        var intersection = _reservedIntersection;
+        if (intersection is null)
+            intersection = IntersectionTrafficController.FindApproaching(
+                GetTree(), GlobalPosition, forward, out stopDistance, out approachAxis);
         if (intersection is not null)
         {
-            if (!intersection.MayVehicleEnter(this, axis, stopDistance))
+            if (!intersection.MayVehicleEnter(this, approachAxis, stopDistance))
             {
                 var stopFactor = Mathf.Clamp((stopDistance - .65f) / 4.5f, 0f, 1f);
                 targetSpeed = MathF.Min(targetSpeed, CruiseSpeed * stopFactor);
