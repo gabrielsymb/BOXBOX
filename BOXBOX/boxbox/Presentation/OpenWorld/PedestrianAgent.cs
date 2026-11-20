@@ -221,6 +221,8 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             }
             _routeIndex = (_routeIndex + 1) % _route.Count;
             target = _route[_routeIndex];
+            if (_avoidance is not null)
+                _avoidance.TargetPosition = target.Position;
             toTarget = target.Position - GlobalPosition;
             toTarget.Y = 0;
         }
@@ -364,6 +366,17 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         var lateral = next - projected;
         lateral.Y = 0f;
         if (lateral.LengthSquared() <= .65f * .65f) return safe;
+
+        // A pedestrian spawned along a segment can begin more than one
+        // corridor radius away from the waypoint-to-waypoint line. Keep the
+        // direct route correction so an overly strict RVO bound cannot pin
+        // that agent beside the sidewalk indefinitely.
+        var currentOffset = GlobalPosition - from;
+        currentOffset.Y = 0f;
+        var currentT = Mathf.Clamp(currentOffset.Dot(segment) / segmentLength, 0f, 1f);
+        var currentLateral = GlobalPosition - (from + segment * currentT);
+        currentLateral.Y = 0f;
+        if (currentLateral.LengthSquared() > .65f * .65f) return preferred;
 
         // Stay close to the sidewalk and let the solver try again next frame,
         // instead of taking a shortcut through buildings or the traffic lane.
