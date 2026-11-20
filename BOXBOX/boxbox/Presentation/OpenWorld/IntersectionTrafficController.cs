@@ -27,6 +27,9 @@ public sealed partial class IntersectionTrafficController : Node3D
         [TrafficAxis.EastWest] = 0
     };
     private double _remaining = GreenSeconds;
+    private TrafficVehicle? _reservedVehicle;
+    private bool _reservedVehicleEntered;
+    private double _reservationStarted;
 
     public IntersectionPhase Phase { get; private set; } = IntersectionPhase.NorthSouthGreen;
     public double TimeRemaining => _remaining;
@@ -39,7 +42,11 @@ public sealed partial class IntersectionTrafficController : Node3D
         ApplySignals();
     }
 
-    public override void _Process(double delta) => SynchronizePhase();
+    public override void _Process(double delta)
+    {
+        SynchronizePhase();
+        CleanupVehicleReservation();
+    }
 
     private void SynchronizePhase()
     {
@@ -79,12 +86,84 @@ public sealed partial class IntersectionTrafficController : Node3D
         return state == TrafficLightState.Yellow && distanceToStopLine > 2.2f;
     }
 
-    public bool CanPedestrianStart(TrafficAxis crossedVehicleAxis, float crossingSeconds = 4.5f) =>
-        StateFor(crossedVehicleAxis) == TrafficLightState.Red && _remaining >= crossingSeconds;
+    /// <summary>
+    /// A traffic signal grants the right-of-way, but only one AI vehicle may
+    /// occupy the crossing box at a time. This is intentionally conservative:
+    /// turn-to-turn conflicts must never rely on collision physics alone.
+    /// </summary>
+    public bool MayVehicleEnter(TrafficVehicle vehicle, TrafficAxis axis, float distanceToStopLine)
+    {
+        CleanupVehicleReservation();
+        if (_reservedVehicle == vehicle) return true;
+        if (_reservedVehicle is not null || ShouldVehicleStop(axis, distanceToStopLine)) return false;
 
-    public void BeginPedestrianCrossing(TrafficAxis axis) => _crossingPedestrians[axis]++;
-    public void EndPedestrianCrossing(TrafficAxis axis) =>
+        // Do not monopolize the junction while still far away from the stop line.
+        if (distanceToStopLine > 2.8f) return true;
+
+        _reservedVehicle = vehicle;
+        _reservedVehicleEntered = false;
+        _reservationStarted = Time.GetTicksMsec() / 1000.0;
+        return true;
+    }
+
+    public bool HasVehicleReservation(TrafficVehicle vehicle)
+    {
+        CleanupVehicleReservation();
+        return _reservedVehicle == vehicle;
+    }
+
+    public void ReleaseVehicle(TrafficVehicle vehicle)
+    {
+        if (_reservedVehicle == vehicle) ClearVehicleReservation();
+    }
+
+    private void CleanupVehicleReservation()
+    {
+        if (_reservedVehicle is null) return;
+        if (!IsInstanceValid(_reservedVehicle) || !_reservedVehicle.IsInsideTree() ||
+            _reservedVehicle.IsQueuedForDeletion())
+        {
+            ClearVehicleReservation();
+            return;
+        }
+
+        var distance = _reservedVehicle.GlobalPosition.DistanceTo(GlobalPosition);
+        if (distance <= 4.8f) _reservedVehicleEntered = true;
+        // A car is clear only after it has traversed the junction, not while
+        // approaching the stop line. Release a stalled approach after a grace period.
+        var waited = Time.GetTicksMsec() / 1000.0 - _reservationStarted;
+        if ((_reservedVehicleEntered && distance > 7.0f) ||
+            (!_reservedVehicleEntered && waited > 6.0))
+            ClearVehicleReservation();
+    }
+
+    private void ClearVehicleReservation()
+    {
+        _reservedVehicle = null;
+        _reservedVehicleEntered = false;
+    }
+
+    public bool CanPedestrianStart(TrafficAxis crossedVehicleAxis, float crossingSeconds = 4.5f)
+    {
+        CleanupVehicleReservation();
+        // Check the scheduled phase, not the overridden visual state: active
+        // crossings can force the lens red without opening a new walk window.
+        return _reservedVehicle is null &&
+            ScheduledStateFor(crossedVehicleAxis) == TrafficLightState.Red &&
+            _remaining >= crossingSeconds;
+    }
+
+    public void BeginPedestrianCrossing(TrafficAxis axis)
+    {
+        _crossingPedestrians[axis]++;
+        ApplySignals();
+    }
+
+    public void EndPedestrianCrossing(TrafficAxis axis)
+    {
         _crossingPedestrians[axis] = Math.Max(0, _crossingPedestrians[axis] - 1);
+        ApplySignals();
+    }
 
     public static TrafficAxis AxisFor(Vector3 direction) =>
         MathF.Abs(direction.Z) >= MathF.Abs(direction.X) ? TrafficAxis.NorthSouth : TrafficAxis.EastWest;
@@ -127,7 +206,10 @@ public sealed partial class IntersectionTrafficController : Node3D
         return best;
     }
 
-    private TrafficLightState StateFor(TrafficAxis axis) => Phase switch
+    private TrafficLightState StateFor(TrafficAxis axis) =>
+        _crossingPedestrians[axis] > 0 ? TrafficLightState.Red : ScheduledStateFor(axis);
+
+    private TrafficLightState ScheduledStateFor(TrafficAxis axis) => Phase switch
     {
         IntersectionPhase.NorthSouthGreen when axis == TrafficAxis.NorthSouth => TrafficLightState.Green,
         IntersectionPhase.NorthSouthYellow when axis == TrafficAxis.NorthSouth => TrafficLightState.Yellow,
