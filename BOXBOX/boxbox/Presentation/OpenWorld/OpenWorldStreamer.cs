@@ -12,6 +12,7 @@ public sealed partial class OpenWorldStreamer : Node3D
     private const float LotSurfaceY = 0.15f;
     private const float BuildingFootprint = 3.15f;
     private readonly Dictionary<Vector2I, LoadedCell> _loaded = [];
+    private readonly Dictionary<Vector2I, IntersectionTrafficController> _intersections = [];
     private readonly List<PendingCell> _pending = [];
     private readonly HashSet<Vector2I> _required = [];
     private Vector2I _lastCenter = new(int.MaxValue, int.MaxValue);
@@ -24,6 +25,7 @@ public sealed partial class OpenWorldStreamer : Node3D
         _pending.Clear();
         _required.Clear();
         _loaded.Clear();
+        _intersections.Clear();
         ThreadedSceneCache.Clear();
     }
 
@@ -64,6 +66,11 @@ public sealed partial class OpenWorldStreamer : Node3D
             _loaded.Remove(coordinate);
         }
         _pending.RemoveAll(item => !_required.Contains(item.Coordinate));
+        foreach (var coordinate in _intersections.Keys.Where(item => !_required.Contains(item)).ToArray())
+        {
+            _intersections[coordinate].QueueFree();
+            _intersections.Remove(coordinate);
+        }
     }
 
     private void QueueCell(Vector2I coordinate, bool detailed, long distanceSquared)
@@ -80,14 +87,33 @@ public sealed partial class OpenWorldStreamer : Node3D
             var pending = _pending[0];
             _pending.RemoveAt(0);
             if (!_required.Contains(pending.Coordinate)) continue;
-            var node = BuildCell(pending.Coordinate, pending.Detailed);
+            var intersection = GetOrCreateIntersection(pending.Coordinate);
+            // Replace signal meshes without discarding the junction's vehicle
+            // reservation or active pedestrian-crossing counters.
+            intersection?.ClearLights();
+            var node = BuildCell(pending.Coordinate, pending.Detailed, intersection);
             if (_loaded.TryGetValue(pending.Coordinate, out var previous)) previous.Node.QueueFree();
             _loaded[pending.Coordinate] = new LoadedCell(node, pending.Detailed);
             AddChild(node);
         }
     }
 
-    private static Node3D BuildCell(Vector2I coordinate, bool detailed)
+    private IntersectionTrafficController? GetOrCreateIntersection(Vector2I coordinate)
+    {
+        if (!WorldLayoutRules.Plan(coordinate).IsIntersection) return null;
+        if (_intersections.TryGetValue(coordinate, out var existing)) return existing;
+        var intersection = new IntersectionTrafficController
+        {
+            Name = $"Intersection_{coordinate.X}_{coordinate.Y}",
+            Position = new Vector3(coordinate.X * CellSize + 2, 0, coordinate.Y * CellSize + 2)
+        };
+        _intersections[coordinate] = intersection;
+        AddChild(intersection);
+        return intersection;
+    }
+
+    private static Node3D BuildCell(Vector2I coordinate, bool detailed,
+        IntersectionTrafficController? intersection)
     {
         var cell = new Node3D
         {
@@ -97,7 +123,7 @@ public sealed partial class OpenWorldStreamer : Node3D
         var plan = WorldLayoutRules.Plan(coordinate);
         if (plan.IsRoad)
         {
-            BuildRoad(cell, coordinate, plan, detailed);
+            BuildRoad(cell, coordinate, plan, detailed, intersection);
             return cell;
         }
 
@@ -137,7 +163,8 @@ public sealed partial class OpenWorldStreamer : Node3D
         return cell;
     }
 
-    private static void BuildRoad(Node3D cell, Vector2I coordinate, WorldCellPlan plan, bool detailed)
+    private static void BuildRoad(Node3D cell, Vector2I coordinate, WorldCellPlan plan,
+        bool detailed, IntersectionTrafficController? intersection)
     {
         var localX = FloorMod(coordinate.X, WorldLayoutRules.RoadPeriod);
         var localZ = FloorMod(coordinate.Y, WorldLayoutRules.RoadPeriod);
@@ -159,17 +186,9 @@ public sealed partial class OpenWorldStreamer : Node3D
             roadPath, plan.IsIntersection ? "WideIntersection" : "WideRoad", roadPosition, roadScale);
         if (!plan.IsIntersection && verticalRoad) road.RotateY(Mathf.Pi / 2f);
         cell.AddChild(road);
-        if (!plan.IsIntersection) return;
-
-        // Traffic law stays available for nearby low-detail road cells.
-        // Detail controls lamp meshes and decoration, not the right of way.
-        var intersection = new IntersectionTrafficController
-        {
-            Name = "SynchronizedIntersection",
-            Position = new Vector3(2, 0, 2)
-        };
-        cell.AddChild(intersection);
-        if (!detailed) return;
+        // Controllers are owned by the streamer and survive any visual LOD
+        // replacement. Only the road signs/meshes belong to this streamed cell.
+        if (!plan.IsIntersection || !detailed || intersection is null) return;
         AddTrafficSignal(cell, intersection, TrafficAxis.NorthSouth,
             "TrafficLightNorthWest", new Vector3(-1.3f, 0, -1.3f), 0);
         AddTrafficSignal(cell, intersection, TrafficAxis.EastWest,
