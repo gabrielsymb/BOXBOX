@@ -51,8 +51,11 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         AddToGroup("pedestrian");
         // Pedestrians are solid to the player/world but use local separation
         // instead of blocking one another into permanent corner clusters.
-        CollisionLayer = 1u << 1;
-        CollisionMask = 1u;
+        CollisionLayer = OpenWorldCollisionLayers.Pedestrian;
+        CollisionMask = OpenWorldCollisionLayers.Scenario |
+                        OpenWorldCollisionLayers.TrafficVehicle |
+                        OpenWorldCollisionLayers.Player |
+                        OpenWorldCollisionLayers.DriveableVehicle;
         FloorMaxAngle = Mathf.DegToRad(50f);
         FloorSnapLength = 0.2f;
         AddChild(new CollisionShape3D

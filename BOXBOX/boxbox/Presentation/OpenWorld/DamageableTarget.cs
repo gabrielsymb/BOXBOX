@@ -14,6 +14,8 @@ public sealed partial class DamageableTarget : StaticBody3D
     public override void _Ready()
     {
         AddToGroup("combat_target");
+        CollisionLayer = OpenWorldCollisionLayers.Scenario;
+        CollisionMask = OpenWorldCollisionLayers.AllActors;
         _collision = new CollisionShape3D
         {
             Position = new Vector3(0, 0.75f, 0),

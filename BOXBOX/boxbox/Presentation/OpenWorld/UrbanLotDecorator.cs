@@ -197,7 +197,9 @@ public static class UrbanLotDecorator
             {
                 Name = $"{name}Collision",
                 Position = position,
-                Rotation = new Vector3(0, yaw, 0)
+                Rotation = new Vector3(0, yaw, 0),
+                CollisionLayer = OpenWorldCollisionLayers.Scenario,
+                CollisionMask = OpenWorldCollisionLayers.AllActors
             };
             body.AddChild(new CollisionShape3D
             {
@@ -222,7 +224,12 @@ public static class UrbanLotDecorator
             Name = $"{name}WarmLight",
             Position = new Vector3(0, 1.48f * scale, 0)
         });
-        var body = new StaticBody3D { Name = $"{name}Collision" };
+        var body = new StaticBody3D
+        {
+            Name = $"{name}Collision",
+            CollisionLayer = OpenWorldCollisionLayers.Scenario,
+            CollisionMask = OpenWorldCollisionLayers.AllActors
+        };
         body.AddChild(new CollisionShape3D
         {
             Position = new Vector3(0, .78f * scale, 0),

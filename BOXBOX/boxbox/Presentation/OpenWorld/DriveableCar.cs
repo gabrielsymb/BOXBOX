@@ -30,7 +30,8 @@ public sealed partial class DriveableCar : CharacterBody3D
     {
         Name = "DriveableSedan";
         AddToGroup("driveable_car");
-        CollisionMask |= 1u << 1;
+        CollisionLayer = OpenWorldCollisionLayers.DriveableVehicle;
+        CollisionMask = OpenWorldCollisionLayers.MovingBodyMask;
 
         var collision = new CollisionShape3D
         {

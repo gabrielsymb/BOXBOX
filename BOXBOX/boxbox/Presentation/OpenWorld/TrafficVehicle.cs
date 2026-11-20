@@ -2,7 +2,7 @@ using Godot;
 
 namespace Boxbox.Presentation.OpenWorld;
 
-public enum TrafficTaskState { Cruising, Braking, Avoiding }
+public enum TrafficTaskState { Cruising, Braking, Avoiding, WaitingForJunction, InsideJunction }
 
 public sealed partial class TrafficVehicle : CharacterBody3D
 {
@@ -14,11 +14,16 @@ public sealed partial class TrafficVehicle : CharacterBody3D
     private const float Gravity = 18f;
     private const float SensorLength = 5.8f;
     private readonly List<Vector3> _waypoints = [];
+    private readonly Queue<RoadManeuver> _maneuvers = [];
     private Vector3 _routeDirection = Vector3.Forward;
     private float _speed;
     private float _avoidOffset;
     private Vector3 _avoidTarget;
     private double _blockedSeconds;
+    private double _deadlockSeconds;
+    private bool _deadlockReported;
+    private string _centerColliderName = "none";
+    private string _nearestIntersectionStatus = "none";
     private uint _routeSeed;
     private uint _maneuverIndex;
     private SpotLight3D? _leftHeadlight;
@@ -27,8 +32,22 @@ public sealed partial class TrafficVehicle : CharacterBody3D
     private bool _headlightsRequested;
     private VehicleLightMaterialController? _lightMaterials;
     private BoxboxDayNightCycle? _cycle;
+    private Label3D? _debugLabel;
+    private IntersectionTrafficController? _junctionController;
 
     public TrafficTaskState TaskState { get; private set; } = TrafficTaskState.Cruising;
+    public uint DiagnosticId => _routeSeed;
+    public string CenterSensorColliderName => _centerColliderName;
+    public float CurrentSpeed => _speed;
+    public Vector3 ActiveIncomingDirection => _maneuvers.Count > 0
+        ? _maneuvers.Peek().IncomingDirection
+        : _routeDirection;
+    public event Action<TrafficVehicle>? DeadlockDetected;
+
+    public void SetDebugOverlayVisible(bool visible)
+    {
+        if (_debugLabel is not null) _debugLabel.Visible = visible;
+    }
 
     public void Initialize(Vector3 direction, string visualPath, uint routeSeed)
     {
@@ -51,7 +70,8 @@ public sealed partial class TrafficVehicle : CharacterBody3D
     {
         Name = "TrafficVehicle";
         AddToGroup("traffic_vehicle");
-        CollisionMask |= 1u << 1;
+        CollisionLayer = OpenWorldCollisionLayers.TrafficVehicle;
+        CollisionMask = OpenWorldCollisionLayers.MovingBodyMask;
         AddChild(new CollisionShape3D
         {
             Name = "TrafficCollision",
@@ -61,6 +81,7 @@ public sealed partial class TrafficVehicle : CharacterBody3D
         CreateHeadlights();
         ConnectDayNightCycle();
         EnsureRoute();
+        CreateDebugLabel();
         AddChild(VisualShadowSupport.CreateContactShadow("VehicleContactShadow", new Vector2(1.4f, 2.55f)));
     }
 
@@ -68,7 +89,10 @@ public sealed partial class TrafficVehicle : CharacterBody3D
     {
         UpdateHeadlights(delta);
         AdvanceReachedWaypoints();
+        AdvanceCompletedManeuvers();
         EnsureRoute();
+
+        var insideJunction = _junctionController?.IsInside(this) == true;
 
         var forward = -GlobalTransform.Basis.Z.Normalized();
         SenseObstacles(forward, out var leftDistance, out var centerDistance, out var rightDistance);
@@ -100,22 +124,116 @@ public sealed partial class TrafficVehicle : CharacterBody3D
         var axis = IntersectionTrafficController.AxisFor(forward);
         var intersection = IntersectionTrafficController.FindApproaching(GetTree(), GlobalPosition, forward,
             out var stopDistance);
-        if (intersection?.ShouldVehicleStop(axis, stopDistance) == true)
+        var stoppedBySignal = intersection?.ShouldVehicleStop(axis, stopDistance) == true;
+        var waitingForAdmission = false;
+        if (intersection is not null && !stoppedBySignal && stopDistance <= 2.5f)
+        {
+            var maneuver = FindManeuver(intersection.GlobalPosition);
+            if (maneuver is not null && intersection.TryEnter(this, axis, maneuver.Value.ExitDirection))
+                _junctionController = intersection;
+            else
+                waitingForAdmission = true;
+        }
+
+        if (stoppedBySignal || waitingForAdmission)
         {
             var stopFactor = Mathf.Clamp((stopDistance - .45f) / 4.5f, 0f, 1f);
             targetSpeed = MathF.Min(targetSpeed, CruiseSpeed * stopFactor);
             if (stopDistance < .7f) targetSpeed = 0;
         }
+        var yieldingInside = insideJunction && _junctionController?.MayProceedInside(this) == false;
+        if (yieldingInside) targetSpeed = 0;
+
+        if (insideJunction) TaskState = TrafficTaskState.InsideJunction;
+        else if (waitingForAdmission) TaskState = TrafficTaskState.WaitingForJunction;
+
         var previousSpeed = _speed;
         _speed = Mathf.MoveToward(_speed, targetSpeed,
             (targetSpeed < _speed ? Braking : Acceleration) * (float)delta);
         _lightMaterials?.SetTaillights(_speed < previousSpeed - 0.01f);
+
+        UpdateIntersectionStatus(axis);
+        UpdateDeadlockObservation(delta, stoppedBySignal || waitingForAdmission || yieldingInside);
+        UpdateDebugLabel();
 
         Velocity = new Vector3(
             forward.X * _speed,
             IsOnFloor() ? 0 : Velocity.Y - Gravity * (float)delta,
             forward.Z * _speed);
         MoveAndSlide();
+    }
+
+    public void OnEnteredIntersection(IntersectionTrafficController controller)
+    {
+        _junctionController = controller;
+    }
+
+    public void OnExitedIntersection(IntersectionTrafficController controller)
+    {
+        if (_junctionController == controller) _junctionController = null;
+    }
+
+    public void OnAdmissionExpired(IntersectionTrafficController controller)
+    {
+        if (_junctionController == controller && !controller.IsInside(this)) _junctionController = null;
+    }
+
+    public override void _UnhandledKeyInput(InputEvent @event)
+    {
+        if (@event is not InputEventKey { Pressed: true, Echo: false, Keycode: Key.F1 }) return;
+        if (_debugLabel is not null) SetDebugOverlayVisible(!_debugLabel.Visible);
+    }
+
+    private void CreateDebugLabel()
+    {
+        _debugLabel = new Label3D
+        {
+            Name = "TrafficDebugLabel",
+            Position = new Vector3(0, 2.05f, 0),
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+            FixedSize = true,
+            FontSize = 28,
+            OutlineSize = 8,
+            PixelSize = 0.0025f,
+            NoDepthTest = true,
+            Visible = false
+        };
+        AddChild(_debugLabel);
+    }
+
+    private void UpdateIntersectionStatus(TrafficAxis axis)
+    {
+        var nearest = IntersectionTrafficController.FindNearestCrossing(GetTree(), GlobalPosition, 24f);
+        _nearestIntersectionStatus = nearest is null ? "none" : $"{axis}/{nearest.Phase}";
+    }
+
+    private void UpdateDeadlockObservation(double delta, bool stoppedBySignal)
+    {
+        var unexpectedlyStopped = _speed < 0.2f && !stoppedBySignal;
+        if (!unexpectedlyStopped)
+        {
+            _deadlockSeconds = 0;
+            _deadlockReported = false;
+            return;
+        }
+
+        _deadlockSeconds += delta;
+        if (_deadlockSeconds <= 5.0 || _deadlockReported) return;
+
+        _deadlockReported = true;
+        var position = GlobalPosition;
+        GD.Print($"DEADLOCK id={DiagnosticId} pos={position.X:F2},{position.Z:F2} " +
+                 $"bloqueado_por={_centerColliderName} fase={_nearestIntersectionStatus} " +
+                 $"tempo={_deadlockSeconds:F1}s");
+        DeadlockDetected?.Invoke(this);
+    }
+
+    private void UpdateDebugLabel()
+    {
+        if (_debugLabel is null || !_debugLabel.Visible) return;
+        _debugLabel.Text = $"id={DiagnosticId} state={TaskState}\n" +
+                           $"speed={_speed:F2} blocked={_blockedSeconds:F1}s\n" +
+                           $"hit={_centerColliderName}\nintersection={_nearestIntersectionStatus}";
     }
 
     private void CreateHeadlights()
@@ -183,13 +301,31 @@ public sealed partial class TrafficVehicle : CharacterBody3D
             _waypoints.RemoveAt(0);
     }
 
+    private void AdvanceCompletedManeuvers()
+    {
+        while (_maneuvers.Count > 0 && _maneuvers.Peek().HasExited(GlobalPosition))
+            _maneuvers.Dequeue();
+    }
+
     private void EnsureRoute()
     {
         if (_waypoints.Count > 2) return;
         var from = _waypoints.Count > 0 ? _waypoints[^1] : GlobalPosition;
-        RoadNodeGraph.AppendNextManeuver(
+        var maneuver = RoadNodeGraph.AppendNextManeuver(
             _waypoints, from, ref _routeDirection, _routeSeed + _maneuverIndex * 7919);
+        _maneuvers.Enqueue(maneuver);
         _maneuverIndex++;
+    }
+
+    private RoadManeuver? FindManeuver(Vector3 intersectionCenter)
+    {
+        foreach (var maneuver in _maneuvers)
+        {
+            var offset = maneuver.IntersectionCenter - intersectionCenter;
+            offset.Y = 0;
+            if (offset.LengthSquared() < 1f) return maneuver;
+        }
+        return null;
     }
 
     private void UpdateAvoidance(double delta, float left, float center, float right)
@@ -212,17 +348,29 @@ public sealed partial class TrafficVehicle : CharacterBody3D
 
     private void SenseObstacles(Vector3 forward, out float left, out float center, out float right)
     {
-        center = CastSensor(forward);
-        left = CastSensor(new Basis(Vector3.Up, Mathf.DegToRad(24)) * forward);
-        right = CastSensor(new Basis(Vector3.Up, Mathf.DegToRad(-24)) * forward);
+        center = CastSensor(forward, out _centerColliderName);
+        left = CastSensor(new Basis(Vector3.Up, Mathf.DegToRad(24)) * forward, out _);
+        right = CastSensor(new Basis(Vector3.Up, Mathf.DegToRad(-24)) * forward, out _);
     }
 
-    private float CastSensor(Vector3 direction)
+    private float CastSensor(Vector3 direction, out string colliderName)
     {
         var origin = GlobalPosition + Vector3.Up * 0.62f + direction * 0.65f;
-        var query = PhysicsRayQueryParameters3D.Create(origin, origin + direction * SensorLength);
-        query.Exclude = new Godot.Collections.Array<Rid> { GetRid() };
+        var query = PhysicsRayQueryParameters3D.Create(
+            origin, origin + direction * SensorLength, OpenWorldCollisionLayers.TrafficSensorMask);
+        var exclusions = new Godot.Collections.Array<Rid> { GetRid() };
+        _junctionController?.AppendInsideVehicleExclusions(exclusions, this);
+        query.Exclude = exclusions;
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
-        return hit.Count == 0 ? SensorLength : origin.DistanceTo(hit["position"].AsVector3());
+        if (hit.Count == 0)
+        {
+            colliderName = "none";
+            return SensorLength;
+        }
+
+        colliderName = hit["collider"].AsGodotObject() is Node collider
+            ? collider.Name.ToString()
+            : "unknown";
+        return origin.DistanceTo(hit["position"].AsVector3());
     }
 }

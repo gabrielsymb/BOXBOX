@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Presentation/OpenWorld/Tests/IntersectionTest.cs" id="1_intersection_test"]
+
+[node name="IntersectionTest" type="Node3D"]
+script = ExtResource("1_intersection_test")
