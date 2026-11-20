@@ -25,14 +25,18 @@ public static class SidewalkGraph
         // Cells are centred on multiples of four. Roads end close to x/z=6 and
         // the first building cell is centred at 8. Keeping the path at 6.25
         // follows the narrow public sidewalk without cutting through its lot.
-        var near = WorldLayoutRules.RoadWidthCells * CellSize - 1.75f;
-        var far = period - (CellSize / 2f + .25f);
+        // Separate nearby pedestrians into subtly different walking tracks.
+        // The limited offset keeps every route on the narrow sidewalk.
+        var trackOffset = ((seed >> 3) % 7u) * .07f - .21f;
+        var near = WorldLayoutRules.RoadWidthCells * CellSize - 1.75f + trackOffset;
+        var far = period - (CellSize / 2f + .25f) - trackOffset;
         var nextNear = period + near;
         var y = 0.2f;
 
+        List<SidewalkWaypoint> route;
         if ((seed & 1u) == 0)
         {
-            return
+            route =
             [
                 new(new Vector3(bx + near, y, bz + near), SidewalkWaypointKind.Activity),
                 new(new Vector3(bx + far, y, bz + near), SidewalkWaypointKind.Walk),
@@ -45,7 +49,7 @@ public static class SidewalkGraph
             ];
         }
 
-        return
+        else route =
         [
             new(new Vector3(bx + near, y, bz + near), SidewalkWaypointKind.Activity),
             new(new Vector3(bx + near, y, bz + far), SidewalkWaypointKind.Walk),
@@ -56,6 +60,24 @@ public static class SidewalkGraph
             new(new Vector3(bx + far, y, bz + far), SidewalkWaypointKind.Crosswalk, TrafficAxis.EastWest),
             new(new Vector3(bx + far, y, bz + near), SidewalkWaypointKind.Activity)
         ];
+
+        // Reverse half the routes. The Crosswalk marker belongs to the
+        // destination of a crossing segment, so reversal must also remap
+        // segment metadata (a naive List.Reverse() would ignore red lights).
+        return (seed & 2u) == 0 ? route : ReversePreservingCrosswalkEdges(route);
+    }
+
+    private static List<SidewalkWaypoint> ReversePreservingCrosswalkEdges(List<SidewalkWaypoint> route)
+    {
+        var reverse = new List<SidewalkWaypoint>(route.Count);
+        for (var index = 0; index < route.Count; index++)
+        {
+            var originalIndex = (route.Count - index) % route.Count;
+            var source = route[originalIndex];
+            var edge = route[(originalIndex + 1) % route.Count];
+            reverse.Add(new SidewalkWaypoint(source.Position, edge.Kind, edge.CrossedVehicleAxis));
+        }
+        return reverse;
     }
 
     public static Vector3 FindSpawn(Vector3 focus, uint seed)
