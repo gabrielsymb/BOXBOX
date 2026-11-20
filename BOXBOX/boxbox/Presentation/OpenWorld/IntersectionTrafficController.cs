@@ -184,7 +184,8 @@ public sealed partial class IntersectionTrafficController : Node3D
         distanceToStopLine = float.MaxValue;
         foreach (var node in tree.GetNodesInGroup("intersection_traffic_controller"))
         {
-            if (node is not IntersectionTrafficController candidate) continue;
+            if (node is not IntersectionTrafficController candidate || !candidate.IsInsideTree() ||
+                candidate.IsQueuedForDeletion()) continue;
             var toward = candidate.GlobalPosition - position;
             toward.Y = 0;
             var along = toward.Dot(direction.Normalized());
@@ -204,7 +205,8 @@ public sealed partial class IntersectionTrafficController : Node3D
         var bestDistance = maximumDistance;
         foreach (var node in tree.GetNodesInGroup("intersection_traffic_controller"))
         {
-            if (node is not IntersectionTrafficController candidate) continue;
+            if (node is not IntersectionTrafficController candidate || !candidate.IsInsideTree() ||
+                candidate.IsQueuedForDeletion()) continue;
             var offset = candidate.GlobalPosition - crossingMidpoint;
             offset.Y = 0;
             var distance = offset.Length();
