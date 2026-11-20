@@ -10,6 +10,9 @@ public sealed partial class PedestrianAgent : CharacterBody3D
     private readonly List<SidewalkWaypoint> _route = [];
     private PlayerController? _player;
     private AnimationPlayer? _animations;
+    private NavigationAgent3D? _avoidance;
+    private Vector3 _safeAvoidanceVelocity;
+    private bool _hasAvoidanceVelocity;
     private IntersectionTrafficController? _crossingController;
     private TrafficAxis _crossingAxis;
     private uint _seed;
@@ -66,10 +69,39 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         });
         _route.AddRange(SidewalkGraph.BuildRoute(GlobalPosition, _seed));
         _routeIndex = FindNearestWaypoint();
+
+        // Godot's built-in RVO2 solver supplies ORCA-style reciprocal
+        // collision avoidance. The authored sidewalk graph is still the
+        // route authority: no NavigationMesh or cloud model is required.
+        // These are movement radii, NOT asset or character scale changes.
+        _avoidance = new NavigationAgent3D
+        {
+            Name = "PedestrianRvoAvoidance",
+            AvoidanceEnabled = true,
+            Use3DAvoidance = false,
+            Radius = MathF.Max(.24f, _bodyHeight * .32f),
+            Height = _bodyHeight,
+            NeighborDistance = 2.6f,
+            MaxNeighbors = 8,
+            TimeHorizonAgents = 1.3f,
+            MaxSpeed = 4f,
+            AvoidanceLayers = 1u,
+            AvoidanceMask = 1u
+        };
+        AddChild(_avoidance);
+        _avoidance.VelocityComputed += OnAvoidanceVelocityComputed;
+        // A NavigationAgent requires a valid target even when only its
+        // avoidance solver is used; navigation paths remain manual.
+        _avoidance.TargetPosition = _route[_routeIndex].Position;
         PlayAnimation("walk");
     }
 
-    public override void _ExitTree() => FinishCrossing();
+    public override void _ExitTree()
+    {
+        if (_avoidance is not null && IsInstanceValid(_avoidance))
+            _avoidance.VelocityComputed -= OnAvoidanceVelocityComputed;
+        FinishCrossing();
+    }
 
     public override void _PhysicsProcess(double delta)
     {
@@ -113,14 +145,20 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         }
         else (desired, speed) = FollowRoute();
 
-        if (desired.LengthSquared() > 0.001f)
+        var preferredVelocity = desired.LengthSquared() > .001f
+            ? desired.Normalized() * speed : Vector3.Zero;
+        // Submit every frame, including zeros: pausing pedestrians remain
+        // visible to nearby RVO agents as stationary obstacles.
+        if (_avoidance is not null) _avoidance.Velocity = preferredVelocity;
+
+        var horizontal = ResolveAvoidanceVelocity(preferredVelocity, (float)delta);
+        if (horizontal.LengthSquared() > .001f)
         {
-            desired = (desired + SeparationSteering() * 1.15f).Normalized();
             // The Mini Characters rigs face +Z, opposite Godot's conventional -Z.
-            Rotation = new Vector3(0, Mathf.Atan2(-desired.X, -desired.Z) + Mathf.Pi, 0);
+            Rotation = new Vector3(0, Mathf.Atan2(-horizontal.X, -horizontal.Z) + Mathf.Pi, 0);
         }
         var vertical = IsOnFloor() ? 0f : Velocity.Y - Gravity * (float)delta;
-        Velocity = new Vector3(desired.X * speed, vertical, desired.Z * speed);
+        Velocity = new Vector3(horizontal.X, vertical, horizontal.Z);
         MoveAndSlide();
         ReleaseCrossingAfterLeavingRoad();
     }
@@ -241,29 +279,67 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         }
     }
 
-    private Vector3 SeparationSteering()
+    private void OnAvoidanceVelocityComputed(Vector3 safeVelocity)
     {
-        var separation = Vector3.Zero;
-        foreach (var node in GetTree().GetNodesInGroup("pedestrian"))
-        {
-            if (node is not PedestrianAgent other || other == this) continue;
-            var away = GlobalPosition - other.GlobalPosition;
-            away.Y = 0;
-            var distance = away.Length();
-            if (distance >= 1.15f) continue;
-            if (distance <= .01f)
-            {
-                // Reciprocal, deterministic escape direction when agents
-                // occupy the same position: neither can derive a direction
-                // from a zero-length displacement.
-                var angle = Hash01(_seed ^ other._seed, 37) * Mathf.Tau;
-                away = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
-                if (_seed > other._seed) away = -away;
-                distance = 0f;
-            }
-            separation += away.Normalized() * (1f - distance / 1.15f);
-        }
-        return separation;
+        safeVelocity.Y = 0f;
+        _safeAvoidanceVelocity = safeVelocity;
+        _hasAvoidanceVelocity = true;
+    }
+
+    private Vector3 ResolveAvoidanceVelocity(Vector3 preferred, float delta)
+    {
+        if (preferred.LengthSquared() < .0001f) return Vector3.Zero;
+        // If the navigation server has not produced a result yet, keep the
+        // original deterministic sidewalk behavior (no first-frame freeze).
+        if (!_hasAvoidanceVelocity) return preferred;
+
+        var safe = _safeAvoidanceVelocity;
+        safe.Y = 0f;
+        // The avoidance server reports velocity, not a teleport destination.
+        // Clamp to the character's existing state-dependent movement speed.
+        var speed = preferred.Length();
+        safe = safe.LimitLength(speed);
+
+        // Never walk backwards into a different sidewalk lane because of a
+        // temporary congestion: waiting is safer than crossing the curb.
+        if (safe.Dot(preferred) < -.01f) return Vector3.Zero;
+
+        if (State == PedestrianState.Crossing)
+            // Keep the painted crosswalk as the authoritative path. The
+            // crosswalk controller, not RVO, decides vehicle right of way.
+            return preferred;
+
+        if (State == PedestrianState.Walking)
+            return KeepInsideSidewalk(safe, preferred, delta);
+
+        return safe;
+    }
+
+    private Vector3 KeepInsideSidewalk(Vector3 safe, Vector3 preferred, float delta)
+    {
+        // RVO2 knows velocities, not city rules. If its proposed side-step
+        // leaves the narrow sidewalk corridor, keep to the authored route.
+        var from = _route[(_routeIndex + _route.Count - 1) % _route.Count].Position;
+        var to = _route[_routeIndex].Position;
+        var segment = to - from;
+        segment.Y = 0f;
+        var segmentLength = segment.LengthSquared();
+        if (segmentLength < .001f) return safe;
+
+        var next = GlobalPosition + safe * delta;
+        var offset = next - from;
+        offset.Y = 0f;
+        var t = Mathf.Clamp(offset.Dot(segment) / segmentLength, 0f, 1f);
+        var projected = from + segment * t;
+        var lateral = next - projected;
+        lateral.Y = 0f;
+        if (lateral.LengthSquared() <= .65f * .65f) return safe;
+
+        // Stay close to the sidewalk and let the solver try again next frame,
+        // instead of taking a shortcut through buildings or the traffic lane.
+        var along = segment.Normalized() * safe.Dot(segment.Normalized());
+        if (along.Dot(preferred) <= .001f) return Vector3.Zero;
+        return along;
     }
 
     private bool ShouldDoActivity() => Hash01(_seed, 1000 + _decisionIndex) < .30f;
