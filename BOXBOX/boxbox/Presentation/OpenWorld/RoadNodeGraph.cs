@@ -9,6 +9,31 @@ public static class RoadNodeGraph
     public const float LaneOffset = 1.45f;
     private const float TurnRadius = 5.2f;
 
+    /// <summary>
+    /// Projects an arbitrary world position onto the legal directional lane.
+    /// The lane offset is shared with maneuver generation, so spawned cars
+    /// enter the same topology they will follow.
+    /// </summary>
+    public static Vector3 SnapToLane(Vector3 position, Vector3 direction)
+    {
+        var laneOffset = LaneOffsetFor(direction);
+        if (MathF.Abs(direction.X) > MathF.Abs(direction.Z))
+            return new Vector3(position.X, position.Y,
+                NearestRoadCenter(position.Z) + laneOffset.Z);
+        return new Vector3(NearestRoadCenter(position.X) + laneOffset.X,
+            position.Y, position.Z);
+    }
+
+    public static float DistanceToNearestJunction(Vector3 position, Vector3 direction)
+    {
+        var travelPosition = MathF.Abs(direction.X) > MathF.Abs(direction.Z)
+            ? position.X : position.Z;
+        return MathF.Abs(travelPosition - NearestRoadCenter(travelPosition));
+    }
+
+    private static float NearestRoadCenter(float value) =>
+        RoadCenterOffset + Mathf.Round((value - RoadCenterOffset) / RoadSpacing) * RoadSpacing;
+
     public static void AppendNextManeuver(
         List<Vector3> waypoints,
         Vector3 from,
