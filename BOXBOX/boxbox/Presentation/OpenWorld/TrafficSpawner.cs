@@ -21,6 +21,7 @@ public sealed partial class TrafficSpawner : Node3D
     private uint _sequence;
 
     public PlayerController? Focus { get; set; }
+    public OpenWorldStreamer? World { get; set; }
 
     public override void _Process(double delta)
     {
@@ -61,6 +62,8 @@ public sealed partial class TrafficSpawner : Node3D
 
             var distance = position.DistanceTo(focus);
             if (distance < MinimumSpawnDistance || distance > MaximumSpawnDistance) continue;
+            // Never place a car beyond the actual loaded road geometry.
+            if (World?.IsCellLoaded(position) != true) continue;
             if (RoadNodeGraph.DistanceToNearestJunction(position, direction) < JunctionExclusionDistance) continue;
             if (!camera.IsPositionBehind(position) && visibleArea.HasPoint(camera.UnprojectPosition(position))) continue;
             if (OverlapsExistingVehicle(position)) continue;
