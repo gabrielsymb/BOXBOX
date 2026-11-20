@@ -10,6 +10,16 @@ public sealed partial class IntersectionTrafficController : Node3D
     private const double GreenSeconds = 10.0;
     private const double YellowSeconds = 2.5;
     private const double AllRedSeconds = 1.0;
+    private static readonly (IntersectionPhase Phase, double Duration)[] Schedule =
+    [
+        (IntersectionPhase.NorthSouthGreen, GreenSeconds),
+        (IntersectionPhase.NorthSouthYellow, YellowSeconds),
+        (IntersectionPhase.AllRedToEastWest, AllRedSeconds),
+        (IntersectionPhase.EastWestGreen, GreenSeconds),
+        (IntersectionPhase.EastWestYellow, YellowSeconds),
+        (IntersectionPhase.AllRedToNorthSouth, AllRedSeconds)
+    ];
+    private const double CycleSeconds = 2 * (GreenSeconds + YellowSeconds + AllRedSeconds);
     private readonly List<(TrafficAxis Axis, TrafficLightController Light)> _lights = [];
     private readonly Dictionary<TrafficAxis, int> _crossingPedestrians = new()
     {
@@ -25,29 +35,33 @@ public sealed partial class IntersectionTrafficController : Node3D
     public override void _Ready()
     {
         AddToGroup("intersection_traffic_controller");
+        SynchronizePhase();
         ApplySignals();
     }
 
-    public override void _Process(double delta)
+    public override void _Process(double delta) => SynchronizePhase();
+
+    private void SynchronizePhase()
     {
-        _remaining -= delta;
-        if (_remaining > 0) return;
-        Phase = Phase switch
+        // The engine clock survives streaming/unloading of individual city cells.
+        // Recreating a visual intersection must not restart its traffic cycle.
+        var elapsed = Time.GetTicksMsec() / 1000.0 % CycleSeconds;
+        foreach (var (phase, duration) in Schedule)
         {
-            IntersectionPhase.NorthSouthGreen => IntersectionPhase.NorthSouthYellow,
-            IntersectionPhase.NorthSouthYellow => IntersectionPhase.AllRedToEastWest,
-            IntersectionPhase.AllRedToEastWest => IntersectionPhase.EastWestGreen,
-            IntersectionPhase.EastWestGreen => IntersectionPhase.EastWestYellow,
-            IntersectionPhase.EastWestYellow => IntersectionPhase.AllRedToNorthSouth,
-            _ => IntersectionPhase.NorthSouthGreen
-        };
-        _remaining = Phase switch
-        {
-            IntersectionPhase.NorthSouthGreen or IntersectionPhase.EastWestGreen => GreenSeconds,
-            IntersectionPhase.NorthSouthYellow or IntersectionPhase.EastWestYellow => YellowSeconds,
-            _ => AllRedSeconds
-        };
-        ApplySignals();
+            if (elapsed >= duration)
+            {
+                elapsed -= duration;
+                continue;
+            }
+
+            _remaining = duration - elapsed;
+            if (Phase != phase)
+            {
+                Phase = phase;
+                ApplySignals();
+            }
+            return;
+        }
     }
 
     public void RegisterLight(TrafficAxis axis, TrafficLightController light)
