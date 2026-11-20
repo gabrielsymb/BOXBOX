@@ -78,6 +78,9 @@ public sealed partial class IntersectionTrafficController : Node3D
         light.SetState(StateFor(axis));
     }
 
+    // Street furniture is replaceable; junction occupancy is not.
+    public void ClearLights() => _lights.Clear();
+
     public bool ShouldVehicleStop(TrafficAxis axis, float distanceToStopLine)
     {
         if (_crossingPedestrians[axis] > 0) return true;
