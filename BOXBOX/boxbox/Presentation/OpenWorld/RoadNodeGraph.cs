@@ -1,4 +1,5 @@
 using Godot;
+using Boxbox.Core.Traffic;
 
 namespace Boxbox.Presentation.OpenWorld;
 
@@ -8,6 +9,7 @@ public static class RoadNodeGraph
     public const float RoadCenterOffset = 2f;
     public const float LaneOffset = 1.45f;
     private const float TurnRadius = 5.2f;
+    private static readonly TrafficLaneGrid Grid = new(RoadSpacing, RoadCenterOffset, LaneOffset);
 
     /// <summary>
     /// Projects an arbitrary world position onto the legal directional lane.
@@ -16,23 +18,12 @@ public static class RoadNodeGraph
     /// </summary>
     public static Vector3 SnapToLane(Vector3 position, Vector3 direction)
     {
-        var laneOffset = LaneOffsetFor(direction);
-        if (MathF.Abs(direction.X) > MathF.Abs(direction.Z))
-            return new Vector3(position.X, position.Y,
-                NearestRoadCenter(position.Z) + laneOffset.Z);
-        return new Vector3(NearestRoadCenter(position.X) + laneOffset.X,
-            position.Y, position.Z);
+        var lane = Grid.SnapToLane(new TrafficCoordinate(position.X, position.Z), Heading(direction));
+        return new Vector3(lane.X, position.Y, lane.Z);
     }
 
-    public static float DistanceToNearestJunction(Vector3 position, Vector3 direction)
-    {
-        var travelPosition = MathF.Abs(direction.X) > MathF.Abs(direction.Z)
-            ? position.X : position.Z;
-        return MathF.Abs(travelPosition - NearestRoadCenter(travelPosition));
-    }
-
-    private static float NearestRoadCenter(float value) =>
-        RoadCenterOffset + Mathf.Round((value - RoadCenterOffset) / RoadSpacing) * RoadSpacing;
+    public static float DistanceToNearestJunction(Vector3 position, Vector3 direction) =>
+        Grid.DistanceToNearestJunction(new TrafficCoordinate(position.X, position.Z), Heading(direction));
 
     public static void AppendNextManeuver(
         List<Vector3> waypoints,
@@ -75,23 +66,17 @@ public static class RoadNodeGraph
 
     private static Vector3 NextIntersection(Vector3 from, Vector3 direction)
     {
-        var roadCenter = from - LaneOffsetFor(direction);
-        if (MathF.Abs(direction.X) > 0.5f)
-        {
-            var index = (from.X - RoadCenterOffset) / RoadSpacing;
-            var nextIndex = direction.X > 0 ? MathF.Floor(index) + 1 : MathF.Ceiling(index) - 1;
-            return new Vector3(
-                RoadCenterOffset + nextIndex * RoadSpacing,
-                from.Y,
-                RoadCenterOffset + MathF.Round((roadCenter.Z - RoadCenterOffset) / RoadSpacing) * RoadSpacing);
-        }
+        var next = Grid.NextIntersection(new TrafficCoordinate(from.X, from.Z), Heading(direction));
+        return new Vector3(next.X, from.Y, next.Z);
+    }
 
-        var zIndex = (from.Z - RoadCenterOffset) / RoadSpacing;
-        var nextZIndex = direction.Z > 0 ? MathF.Floor(zIndex) + 1 : MathF.Ceiling(zIndex) - 1;
-        return new Vector3(
-            RoadCenterOffset + MathF.Round((roadCenter.X - RoadCenterOffset) / RoadSpacing) * RoadSpacing,
-            from.Y,
-            RoadCenterOffset + nextZIndex * RoadSpacing);
+    private static CardinalRoadDirection Heading(Vector3 direction)
+    {
+        var cardinal = Cardinal(direction);
+        if (cardinal == Vector3.Forward) return CardinalRoadDirection.North;
+        if (cardinal == Vector3.Back) return CardinalRoadDirection.South;
+        if (cardinal == Vector3.Right) return CardinalRoadDirection.East;
+        return CardinalRoadDirection.West;
     }
 
     private static Vector3 Cardinal(Vector3 direction)
