@@ -28,6 +28,7 @@ public sealed partial class IntersectionTrafficController : Node3D
     };
     private double _remaining = GreenSeconds;
     private TrafficVehicle? _reservedVehicle;
+    private TrafficAxis _reservedAxis;
     private bool _reservedVehicleEntered;
     private double _reservationStarted;
 
@@ -101,6 +102,7 @@ public sealed partial class IntersectionTrafficController : Node3D
         if (distanceToStopLine > 2.8f) return true;
 
         _reservedVehicle = vehicle;
+        _reservedAxis = axis;
         _reservedVehicleEntered = false;
         _reservationStarted = Time.GetTicksMsec() / 1000.0;
         return true;
@@ -129,6 +131,13 @@ public sealed partial class IntersectionTrafficController : Node3D
 
         var distance = _reservedVehicle.GlobalPosition.DistanceTo(GlobalPosition);
         if (distance <= 4.8f) _reservedVehicleEntered = true;
+        // An authorization cannot outlive a red phase while its vehicle is
+        // still on the approach. Cars already in the box keep their clearance.
+        if (!_reservedVehicleEntered && ScheduledStateFor(_reservedAxis) == TrafficLightState.Red)
+        {
+            ClearVehicleReservation();
+            return;
+        }
         // A car is clear only after it has traversed the junction, not while
         // approaching the stop line. Release a stalled approach after a grace period.
         var waited = Time.GetTicksMsec() / 1000.0 - _reservationStarted;
