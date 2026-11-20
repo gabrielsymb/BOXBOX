@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "temperature": 95,
+  "noPurchaseBaseUtility": 430,
+  "experienceLearningRate": 180,
+  "profiles": [
+    {
+      "id": "price_seeker",
+      "priceWeight": 650,
+      "queueWeight": 90,
+      "convenienceWeight": 80,
+      "reputationWeight": 80,
+      "familiarityWeight": 100
+    },
+    {
+      "id": "time_sensitive",
+      "priceWeight": 100,
+      "queueWeight": 420,
+      "convenienceWeight": 250,
+      "reputationWeight": 130,
+      "familiarityWeight": 100
+    },
+    {
+      "id": "regular",
+      "priceWeight": 180,
+      "queueWeight": 120,
+      "convenienceWeight": 120,
+      "reputationWeight": 180,
+      "familiarityWeight": 400
+    }
+  ]
+}

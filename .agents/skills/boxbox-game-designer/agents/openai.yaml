@@ -1,0 +1,4 @@
+interface:
+  display_name: "BOXBOX Game Designer"
+  short_description: "Projeta e evolui o jogo BOXBOX"
+  default_prompt: "Use $boxbox-game-designer para transformar minha ideia em uma decisão de design ou implementação coerente com o BOXBOX."

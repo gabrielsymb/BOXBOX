@@ -1,0 +1,16 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# Godot editor/import cache
+**/.godot/
+
+# Local editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.codex-attachments/
+
+# External research checkouts are local references, never product source.
+research/third-party/
