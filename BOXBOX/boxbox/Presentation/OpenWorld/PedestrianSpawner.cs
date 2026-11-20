@@ -6,6 +6,7 @@ public sealed partial class PedestrianSpawner : Node3D
 {
     private const int Maximum = 8;
     private const float ActiveRadius = 32f;
+    private const float MinimumSpawnSpacing = 1.8f;
     private readonly List<PedestrianAgent> _agents = [];
     private double _cooldown;
     private uint _sequence;
@@ -38,6 +39,9 @@ public sealed partial class PedestrianSpawner : Node3D
             var candidate = SidewalkGraph.FindSpawn(focus, candidateSeed);
             var distance = candidate.DistanceTo(focus);
             if (distance is < 19f or > ActiveRadius - 1f) continue;
+            // A fresh pedestrian must not materialize on top of an existing one.
+            if (_agents.Any(agent => IsInstanceValid(agent) && !agent.IsQueuedForDeletion() &&
+                agent.GlobalPosition.DistanceSquaredTo(candidate) < MinimumSpawnSpacing * MinimumSpawnSpacing)) continue;
             if (camera is not null && !camera.IsPositionBehind(candidate) &&
                 viewportRect.HasPoint(camera.UnprojectPosition(candidate))) continue;
             spawn = candidate;
