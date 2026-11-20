@@ -181,22 +181,36 @@ public sealed partial class IntersectionTrafficController : Node3D
         MathF.Abs(direction.Z) >= MathF.Abs(direction.X) ? TrafficAxis.NorthSouth : TrafficAxis.EastWest;
 
     public static IntersectionTrafficController? FindApproaching(
-        SceneTree tree, Vector3 position, Vector3 direction, out float distanceToStopLine)
+        SceneTree tree, Vector3 position, Vector3 direction, out float distanceToStopLine) =>
+        FindApproaching(tree, position, direction, out distanceToStopLine, out _);
+
+    public static IntersectionTrafficController? FindApproaching(
+        SceneTree tree, Vector3 position, Vector3 direction, out float distanceToStopLine,
+        out TrafficAxis approachAxis)
     {
         IntersectionTrafficController? best = null;
         distanceToStopLine = float.MaxValue;
+        approachAxis = AxisFor(direction);
         foreach (var node in tree.GetNodesInGroup("intersection_traffic_controller"))
         {
             if (node is not IntersectionTrafficController candidate || !candidate.IsInsideTree() ||
                 candidate.IsQueuedForDeletion()) continue;
             var toward = candidate.GlobalPosition - position;
             toward.Y = 0;
-            var along = toward.Dot(direction.Normalized());
-            var lateral = toward - direction.Normalized() * along;
+            // Determine the incoming road from the junction's location, not
+            // the car's instantaneous yaw: it may already be steering into a turn.
+            var incoming = MathF.Abs(toward.X) > MathF.Abs(toward.Z)
+                ? (toward.X >= 0 ? Vector3.Right : Vector3.Left)
+                : (toward.Z >= 0 ? Vector3.Back : Vector3.Forward);
+            if (direction.Dot(incoming) < 0.2f) continue;
+            var along = toward.Dot(incoming);
+            var lateral = toward - incoming * along;
             var stopDistance = along - 4.2f;
-            if (along <= 4.2f || stopDistance > 10f || lateral.Length() > 4f || stopDistance >= distanceToStopLine) continue;
+            if (along <= 4.2f || stopDistance > 10f || lateral.Length() > 4f ||
+                stopDistance >= distanceToStopLine) continue;
             best = candidate;
             distanceToStopLine = stopDistance;
+            approachAxis = AxisFor(incoming);
         }
         return best;
     }
