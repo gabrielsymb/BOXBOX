@@ -160,7 +160,10 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         toTarget.Y = 0;
         if (toTarget.Length() < .48f)
         {
-            if (State == PedestrianState.Crossing) FinishCrossing();
+            // Crossing protection belongs to the occupied segment, not to a
+            // transient animation/emotion state such as Fleeing or Startled.
+            if (target.Kind == SidewalkWaypointKind.Crosswalk && _crossingController is not null)
+                FinishCrossing();
             if (target.Kind == SidewalkWaypointKind.Activity && ShouldDoActivity())
             {
                 State = PedestrianState.DoingActivity;
@@ -185,8 +188,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             if (controller is null || !controller.CanPedestrianStart(target.CrossedVehicleAxis))
             {
                 State = PedestrianState.WaitingCrosswalk;
-                PlayAnimation("idle");
-                return (Vector3.Zero, 0);
+                return MoveToCrosswalkWaitingSpot(target.Position);
             }
             _crossingController = controller;
             _crossingAxis = target.CrossedVehicleAxis;
@@ -199,6 +201,29 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         var hurry = State == PedestrianState.Crossing &&
             _crossingController?.StateForAxis(_crossingAxis) != TrafficLightState.Red ? 1.45f : 1f;
         return (toTarget.Normalized(), _walkSpeed * hurry);
+    }
+
+    private (Vector3 Direction, float Speed) MoveToCrosswalkWaitingSpot(Vector3 crossingEnd)
+    {
+        // Stage waiting pedestrians behind the curb, not all on one waypoint.
+        // Deterministic individual offsets avoid a crowded pile of NPCs.
+        var curb = _route[(_routeIndex + _route.Count - 1) % _route.Count].Position;
+        var across = crossingEnd - curb;
+        across.Y = 0;
+        if (across.LengthSquared() < .01f) return (Vector3.Zero, 0);
+        var forward = across.Normalized();
+        var sideways = new Vector3(-forward.Z, 0, forward.X);
+        var spot = curb - forward * (.25f + Hash01(_seed, 70) * 1.05f)
+            + sideways * ((Hash01(_seed, 71) - .5f) * 1.5f);
+        var approach = spot - GlobalPosition;
+        approach.Y = 0;
+        if (approach.LengthSquared() < .18f * .18f)
+        {
+            PlayAnimation("idle");
+            return (Vector3.Zero, 0);
+        }
+        PlayAnimation("walk");
+        return (approach.Normalized(), _walkSpeed * .75f);
     }
 
     private void DetectDanger()
@@ -268,10 +293,11 @@ public sealed partial class PedestrianAgent : CharacterBody3D
 
         var offset = GlobalPosition - _crossingController.GlobalPosition;
         var across = _crossingAxis == TrafficAxis.NorthSouth ? MathF.Abs(offset.X) : MathF.Abs(offset.Z);
-        // The sidewalk begins outside the approximately eight-unit wide road.
-        // Keep the junction protected if danger causes a pedestrian to flee
-        // along the street instead of continuing to the opposite pavement.
-        if (across > 5.3f) FinishCrossing();
+        var along = _crossingAxis == TrafficAxis.NorthSouth ? MathF.Abs(offset.Z) : MathF.Abs(offset.X);
+        // A frightened pedestrian can flee sideways, parallel to traffic.
+        // Release protection once outside the junction/crosswalk area on
+        // either axis, avoiding a permanently red signal.
+        if (across > 5.3f || along > 7.5f) FinishCrossing();
     }
 
     private void FinishCrossing()
