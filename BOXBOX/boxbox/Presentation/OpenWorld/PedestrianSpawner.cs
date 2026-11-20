@@ -11,6 +11,7 @@ public sealed partial class PedestrianSpawner : Node3D
     private double _cooldown;
     private uint _sequence;
     public PlayerController? Focus { get; set; }
+    [Export] public bool EnableReciprocalAvoidance { get; set; } = true;
 
     public override void _Process(double delta)
     {
@@ -18,13 +19,21 @@ public sealed partial class PedestrianSpawner : Node3D
         foreach (var existing in _agents)
             if (IsInstanceValid(existing) && existing.GlobalPosition.DistanceTo(Focus.FocusPosition) > ActiveRadius)
                 existing.QueueFree();
-        _agents.RemoveAll(a => !IsInstanceValid(a));
+        _agents.RemoveAll(a => !IsInstanceValid(a) || a.IsQueuedForDeletion());
+        // Keep the on/off control useful for agents already spawned. This
+        // is deliberately not coupled to their model or skeleton scale.
+        foreach (var existing in _agents)
+            existing.UseReciprocalAvoidance = EnableReciprocalAvoidance;
         _cooldown -= delta;
         if (_cooldown > 0 || _agents.Count >= Maximum) return;
         _cooldown = 1.5;
         if (!TryFindOffscreenSpawn(Focus.FocusPosition, out var spawn)) return;
         _sequence++;
-        var agent = new PedestrianAgent { Position = spawn };
+        var agent = new PedestrianAgent
+        {
+            Position = spawn,
+            UseReciprocalAvoidance = EnableReciprocalAvoidance
+        };
         agent.Initialize(Focus, WorldAssetCatalog.Current.Pick(WorldAssetCategory.NpcCharacters, _sequence), _sequence * 2654435761u);
         AddChild(agent); _agents.Add(agent);
     }
