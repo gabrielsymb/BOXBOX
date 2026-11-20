@@ -11,6 +11,7 @@
 .DS_Store
 Thumbs.db
 .codex-attachments/
+erros/
 
 # External research checkouts are local references, never product source.
 research/third-party/
