@@ -115,7 +115,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
 
         if (desired.LengthSquared() > 0.001f)
         {
-            desired = (desired + SeparationSteering() * .58f).Normalized();
+            desired = (desired + SeparationSteering() * 1.15f).Normalized();
             // The Mini Characters rigs face +Z, opposite Godot's conventional -Z.
             Rotation = new Vector3(0, Mathf.Atan2(-desired.X, -desired.Z) + Mathf.Pi, 0);
         }
@@ -219,7 +219,17 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             var away = GlobalPosition - other.GlobalPosition;
             away.Y = 0;
             var distance = away.Length();
-            if (distance is <= .01f or >= 1.15f) continue;
+            if (distance >= 1.15f) continue;
+            if (distance <= .01f)
+            {
+                // Reciprocal, deterministic escape direction when agents
+                // occupy the same position: neither can derive a direction
+                // from a zero-length displacement.
+                var angle = Hash01(_seed ^ other._seed, 37) * Mathf.Tau;
+                away = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
+                if (_seed > other._seed) away = -away;
+                distance = 0f;
+            }
             separation += away.Normalized() * (1f - distance / 1.15f);
         }
         return separation;
