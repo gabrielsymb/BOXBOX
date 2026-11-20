@@ -119,12 +119,7 @@ public sealed partial class OpenWorldPrototype : Node3D
 
     private void CreateGroundCollision()
     {
-        var ground = new StaticBody3D
-        {
-            Name = "InvisibleWorldGround",
-            CollisionLayer = OpenWorldCollisionLayers.Scenario,
-            CollisionMask = OpenWorldCollisionLayers.AllActors
-        };
+        var ground = new StaticBody3D { Name = "InvisibleWorldGround" };
         ground.AddChild(new CollisionShape3D
         {
             Position = new Vector3(0, -0.28f, 0),

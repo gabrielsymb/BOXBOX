@@ -1,3 +1,0 @@
-# Camadas de colisão do mundo aberto
-
-O mundo aberto reserva as camadas 3D `Cenario`, `VeiculoTrafego`, `Pedestre`, `Jogador` e `VeiculoDirigivel`. Corpos móveis continuam colidindo fisicamente com o cenário e com os atores pertinentes, mas o sensor frontal do tráfego consulta somente as quatro camadas de atores; postes, semáforos, bancos, árvores, prédios, pisos e meios-fios permanecem em `Cenario` e não podem reduzir a velocidade desejada por raycast. Os números e máscaras vivem em `OpenWorldCollisionLayers` e os nomes equivalentes em `project.godot`; ambos formam um único contrato e devem ser alterados juntos.

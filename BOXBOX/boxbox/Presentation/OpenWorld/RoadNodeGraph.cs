@@ -3,23 +3,6 @@ using Boxbox.Core.Traffic;
 
 namespace Boxbox.Presentation.OpenWorld;
 
-public enum RoadManeuverKind { Straight, Left, Right }
-
-public readonly record struct RoadManeuver(
-    Vector3 IntersectionCenter,
-    Vector3 IncomingDirection,
-    Vector3 ExitDirection,
-    Vector3 ExitPoint,
-    RoadManeuverKind Kind)
-{
-    public bool HasExited(Vector3 position)
-    {
-        var offset = position - IntersectionCenter;
-        offset.Y = 0;
-        return offset.Dot(ExitDirection) >= 4.65f;
-    }
-}
-
 public static class RoadNodeGraph
 {
     public const float RoadSpacing = WorldLayoutRules.RoadPeriod * 4f;
@@ -42,7 +25,7 @@ public static class RoadNodeGraph
     public static float DistanceToNearestJunction(Vector3 position, Vector3 direction) =>
         Grid.DistanceToNearestJunction(new TrafficCoordinate(position.X, position.Z), Heading(direction));
 
-    public static RoadManeuver AppendNextManeuver(
+    public static void AppendNextManeuver(
         List<Vector3> waypoints,
         Vector3 from,
         ref Vector3 direction,
@@ -59,9 +42,8 @@ public static class RoadNodeGraph
         var choice = decisionSeed % 5;
         if (choice >= 2)
         {
-            var straightEnd = incomingLane + direction * (TurnRadius + 1.8f);
-            waypoints.Add(straightEnd);
-            return new RoadManeuver(center, direction, direction, straightEnd, RoadManeuverKind.Straight);
+            waypoints.Add(incomingLane + direction * (TurnRadius + 1.8f));
+            return;
         }
 
         var outgoing = choice == 0 ? TurnLeft(direction) : TurnRight(direction);
@@ -76,10 +58,7 @@ public static class RoadNodeGraph
             var t = index / 6f;
             waypoints.Add(QuadraticBezier(start, control, end, t));
         }
-        var maneuver = new RoadManeuver(center, direction, outgoing, end,
-            choice == 0 ? RoadManeuverKind.Left : RoadManeuverKind.Right);
         direction = outgoing;
-        return maneuver;
     }
 
     public static Vector3 LaneOffsetFor(Vector3 direction) =>

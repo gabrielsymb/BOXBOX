@@ -26,14 +26,6 @@ window/dpi/allow_hidpi=false
 
 project/assembly_name="BOXBOX"
 
-[layer_names]
-
-3d_physics/layer_1="Cenario"
-3d_physics/layer_2="VeiculoTrafego"
-3d_physics/layer_3="Pedestre"
-3d_physics/layer_4="Jogador"
-3d_physics/layer_5="VeiculoDirigivel"
-
 [physics]
 
 3d/physics_engine="Jolt Physics"

@@ -29,8 +29,8 @@ public sealed partial class PlayerController : CharacterBody3D
     {
         Name = "BOXBOX_Protagonist";
         AddToGroup("player");
-        CollisionLayer = OpenWorldCollisionLayers.Player;
-        CollisionMask = OpenWorldCollisionLayers.MovingBodyMask;
+        CollisionLayer = 1u;
+        CollisionMask = 1u | (1u << 1);
         FloorMaxAngle = Mathf.DegToRad(50f);
         FloorSnapLength = 0.22f;
         FloorStopOnSlope = true;

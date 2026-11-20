@@ -330,12 +330,7 @@ public sealed partial class OpenWorldStreamer : Node3D
             root.AddChild(controller);
             controller.Bind(visual);
         }
-        var body = new StaticBody3D
-        {
-            Name = $"{name}Collision",
-            CollisionLayer = OpenWorldCollisionLayers.Scenario,
-            CollisionMask = OpenWorldCollisionLayers.AllActors
-        };
+        var body = new StaticBody3D { Name = $"{name}Collision" };
         var trafficLight = name.StartsWith("TrafficLight", StringComparison.Ordinal);
         body.AddChild(new CollisionShape3D
         {
@@ -351,12 +346,7 @@ public sealed partial class OpenWorldStreamer : Node3D
     private static StaticBody3D CreateBuildingCollider(BuildingPlacement placement)
     {
         var size = placement.Bounds.Size * placement.Scale;
-        var body = new StaticBody3D
-        {
-            Name = "InvisibleBuildingCollision",
-            CollisionLayer = OpenWorldCollisionLayers.Scenario,
-            CollisionMask = OpenWorldCollisionLayers.AllActors
-        };
+        var body = new StaticBody3D { Name = "InvisibleBuildingCollision" };
         body.AddChild(new CollisionShape3D
         {
             Position = new Vector3(0, placement.SurfaceY + size.Y / 2f, 0),
@@ -368,12 +358,7 @@ public sealed partial class OpenWorldStreamer : Node3D
 
     private static StaticBody3D CreateLowLotCollider()
     {
-        var body = new StaticBody3D
-        {
-            Name = "ExactLowLotCollision",
-            CollisionLayer = OpenWorldCollisionLayers.Scenario,
-            CollisionMask = OpenWorldCollisionLayers.AllActors
-        };
+        var body = new StaticBody3D { Name = "ExactLowLotCollision" };
         body.AddChild(new CollisionShape3D
         {
             Position = new Vector3(0, LotSurfaceY / 2f, 0),
@@ -384,12 +369,7 @@ public sealed partial class OpenWorldStreamer : Node3D
 
     private static StaticBody3D CreateTreeCollider(Vector3 basePosition)
     {
-        var body = new StaticBody3D
-        {
-            Name = "InvisibleTreeCollision",
-            CollisionLayer = OpenWorldCollisionLayers.Scenario,
-            CollisionMask = OpenWorldCollisionLayers.AllActors
-        };
+        var body = new StaticBody3D { Name = "InvisibleTreeCollision" };
         body.AddChild(new CollisionShape3D
         {
             Position = basePosition + Vector3.Up * 0.65f,

@@ -26,9 +26,6 @@ public sealed partial class IntersectionTrafficController : Node3D
         [TrafficAxis.NorthSouth] = 0,
         [TrafficAxis.EastWest] = 0
     };
-    private readonly HashSet<TrafficVehicle> _insideVehicles = [];
-    private readonly Dictionary<TrafficVehicle, Admission> _admissions = [];
-    private readonly Dictionary<TrafficVehicle, double> _insideStoppedSeconds = [];
     private double _remaining = GreenSeconds;
     private TrafficVehicle? _reservedVehicle;
     private TrafficAxis _reservedAxis;
@@ -37,7 +34,6 @@ public sealed partial class IntersectionTrafficController : Node3D
 
     public IntersectionPhase Phase { get; private set; } = IntersectionPhase.NorthSouthGreen;
     public double TimeRemaining => _remaining;
-    public int InsideVehicleCount => _insideVehicles.Count;
     public TrafficLightState StateForAxis(TrafficAxis axis) => StateFor(axis);
 
     public override void _Ready()
@@ -76,22 +72,6 @@ public sealed partial class IntersectionTrafficController : Node3D
         }
     }
 
-    public override void _PhysicsProcess(double delta)
-    {
-        foreach (var vehicle in _insideVehicles.ToArray())
-        {
-            if (!IsInstanceValid(vehicle))
-            {
-                RemoveVehicle(vehicle);
-                continue;
-            }
-            if (vehicle.CurrentSpeed < 0.2f)
-                _insideStoppedSeconds[vehicle] = _insideStoppedSeconds.GetValueOrDefault(vehicle) + delta;
-            else
-                _insideStoppedSeconds[vehicle] = 0;
-        }
-    }
-
     public void RegisterLight(TrafficAxis axis, TrafficLightController light)
     {
         _lights.Add((axis, light));
@@ -106,6 +86,7 @@ public sealed partial class IntersectionTrafficController : Node3D
         if (_crossingPedestrians[axis] > 0) return true;
         var state = StateFor(axis);
         if (state == TrafficLightState.Red) return true;
+        // On yellow, vehicles that can still stop comfortably must do so.
         return state == TrafficLightState.Yellow && distanceToStopLine > 2.2f;
     }
 
@@ -288,10 +269,4 @@ public sealed partial class IntersectionTrafficController : Node3D
     {
         foreach (var (axis, light) in _lights) light.SetState(StateFor(axis));
     }
-
-    private readonly record struct Admission(
-        TrafficAxis Axis,
-        Vector3 IncomingDirection,
-        Vector3 ExitDirection,
-        double GrantedAtSeconds);
 }
