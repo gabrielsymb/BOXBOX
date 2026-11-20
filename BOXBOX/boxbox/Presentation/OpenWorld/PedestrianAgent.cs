@@ -10,6 +10,9 @@ public sealed partial class PedestrianAgent : CharacterBody3D
     private readonly List<SidewalkWaypoint> _route = [];
     private PlayerController? _player;
     private AnimationPlayer? _animations;
+    private NavigationAgent3D? _avoidance;
+    private Vector3 _safeAvoidanceVelocity;
+    private bool _hasAvoidanceVelocity;
     private IntersectionTrafficController? _crossingController;
     private TrafficAxis _crossingAxis;
     private uint _seed;
@@ -24,6 +27,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
     private bool _fleeAfterCower;
     private Vector3 _dangerSource;
 
+    [Export] public bool UseReciprocalAvoidance { get; set; } = true;
     public PedestrianState State { get; private set; } = PedestrianState.Walking;
 
     public void Initialize(PlayerController player, string visualPath, uint seed)
@@ -69,10 +73,39 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         });
         _route.AddRange(SidewalkGraph.BuildRoute(GlobalPosition, _seed));
         _routeIndex = FindNearestWaypoint();
+
+        // Godot's built-in RVO2 solver supplies ORCA-style reciprocal
+        // collision avoidance. The authored sidewalk graph is still the
+        // route authority: no NavigationMesh or cloud model is required.
+        // These are movement radii, NOT asset or character scale changes.
+        _avoidance = new NavigationAgent3D
+        {
+            Name = "PedestrianRvoAvoidance",
+            AvoidanceEnabled = UseReciprocalAvoidance,
+            Use3DAvoidance = false,
+            Radius = MathF.Max(.24f, _bodyHeight * .32f),
+            Height = _bodyHeight,
+            NeighborDistance = 2.6f,
+            MaxNeighbors = 8,
+            TimeHorizonAgents = 1.3f,
+            MaxSpeed = 4f,
+            AvoidanceLayers = 1u,
+            AvoidanceMask = 1u
+        };
+        AddChild(_avoidance);
+        _avoidance.VelocityComputed += OnAvoidanceVelocityComputed;
+        // A NavigationAgent requires a valid target even when only its
+        // avoidance solver is used; navigation paths remain manual.
+        _avoidance.TargetPosition = _route[_routeIndex].Position;
         PlayAnimation("walk");
     }
 
-    public override void _ExitTree() => FinishCrossing();
+    public override void _ExitTree()
+    {
+        if (_avoidance is not null && IsInstanceValid(_avoidance))
+            _avoidance.VelocityComputed -= OnAvoidanceVelocityComputed;
+        FinishCrossing();
+    }
 
     public override void _PhysicsProcess(double delta)
     {
@@ -116,15 +149,31 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         }
         else (desired, speed) = FollowRoute();
 
-        if (desired.LengthSquared() > 0.001f)
+        var preferredVelocity = desired.LengthSquared() > .001f
+            ? desired.Normalized() * speed : Vector3.Zero;
+        // Submit every frame, including zeros: pausing pedestrians remain
+        // visible to nearby RVO agents as stationary obstacles.
+        if (_avoidance is not null)
         {
-            desired = (desired + SeparationSteering() * .58f).Normalized();
+            // The Remote inspector can toggle the solver during an A/B test.
+            if (_avoidance.AvoidanceEnabled != UseReciprocalAvoidance)
+            {
+                _avoidance.AvoidanceEnabled = UseReciprocalAvoidance;
+                _hasAvoidanceVelocity = false;
+            }
+            if (UseReciprocalAvoidance) _avoidance.Velocity = preferredVelocity;
+        }
+
+        var horizontal = ResolveAvoidanceVelocity(preferredVelocity, (float)delta);
+        if (horizontal.LengthSquared() > .001f)
+        {
             // The Mini Characters rigs face +Z, opposite Godot's conventional -Z.
-            Rotation = new Vector3(0, Mathf.Atan2(-desired.X, -desired.Z) + Mathf.Pi, 0);
+            Rotation = new Vector3(0, Mathf.Atan2(-horizontal.X, -horizontal.Z) + Mathf.Pi, 0);
         }
         var vertical = IsOnFloor() ? 0f : Velocity.Y - Gravity * (float)delta;
-        Velocity = new Vector3(desired.X * speed, vertical, desired.Z * speed);
+        Velocity = new Vector3(horizontal.X, vertical, horizontal.Z);
         MoveAndSlide();
+        ReleaseCrossingAfterLeavingRoad();
     }
 
     public void NotifyDanger(Vector3 source, float seconds = 4.5f)
@@ -132,14 +181,14 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         _dangerSource = source;
         _fleeRemaining = Math.Max(_fleeRemaining, seconds);
         _activityRemaining = 0;
-        FinishCrossing();
+        // Preserve the crossing reservation while fleeing on the roadway.
     }
 
     public void NotifyGunshot(Vector3 source)
     {
         _dangerSource = source;
         _activityRemaining = 0;
-        FinishCrossing();
+        // A startled NPC must not instantly clear an occupied crosswalk.
         var roll = Hash01(_seed, 5000 + _decisionIndex++);
         if (roll < .45f)
         {
@@ -162,7 +211,10 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         toTarget.Y = 0;
         if (toTarget.Length() < .48f)
         {
-            if (State == PedestrianState.Crossing) FinishCrossing();
+            // Crossing protection belongs to the occupied segment, not to a
+            // transient animation/emotion state such as Fleeing or Startled.
+            if (target.Kind == SidewalkWaypointKind.Crosswalk && _crossingController is not null)
+                FinishCrossing();
             if (target.Kind == SidewalkWaypointKind.Activity && ShouldDoActivity())
             {
                 State = PedestrianState.DoingActivity;
@@ -172,30 +224,59 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             }
             _routeIndex = (_routeIndex + 1) % _route.Count;
             target = _route[_routeIndex];
+            if (_avoidance is not null)
+                _avoidance.TargetPosition = target.Position;
             toTarget = target.Position - GlobalPosition;
             toTarget.Y = 0;
         }
 
-        if (target.Kind == SidewalkWaypointKind.Crosswalk && State != PedestrianState.Crossing)
+        if (_crossingController is not null &&
+            (!IsInstanceValid(_crossingController) || !_crossingController.IsInsideTree()))
+            _crossingController = null;
+        if (target.Kind == SidewalkWaypointKind.Crosswalk && _crossingController is null)
         {
             var controller = IntersectionTrafficController.FindNearestCrossing(GetTree(), GlobalPosition.Lerp(target.Position, .5f));
-            if (controller is not null && !controller.CanPedestrianStart(target.CrossedVehicleAxis))
+            // Missing controller means the surrounding city cell is still
+            // streaming in; an unregulated crossing is not safe by default.
+            if (controller is null || !controller.CanPedestrianStart(target.CrossedVehicleAxis))
             {
                 State = PedestrianState.WaitingCrosswalk;
-                PlayAnimation("idle");
-                return (Vector3.Zero, 0);
+                return MoveToCrosswalkWaitingSpot(target.Position);
             }
             _crossingController = controller;
             _crossingAxis = target.CrossedVehicleAxis;
-            controller?.BeginPedestrianCrossing(_crossingAxis);
+            controller.BeginPedestrianCrossing(_crossingAxis);
             State = PedestrianState.Crossing;
         }
-        else if (State != PedestrianState.Crossing) State = PedestrianState.Walking;
+        else State = _crossingController is null ? PedestrianState.Walking : PedestrianState.Crossing;
 
         PlayAnimation("walk");
         var hurry = State == PedestrianState.Crossing &&
             _crossingController?.StateForAxis(_crossingAxis) != TrafficLightState.Red ? 1.45f : 1f;
         return (toTarget.Normalized(), _walkSpeed * hurry);
+    }
+
+    private (Vector3 Direction, float Speed) MoveToCrosswalkWaitingSpot(Vector3 crossingEnd)
+    {
+        // Stage waiting pedestrians behind the curb, not all on one waypoint.
+        // Deterministic individual offsets avoid a crowded pile of NPCs.
+        var curb = _route[(_routeIndex + _route.Count - 1) % _route.Count].Position;
+        var across = crossingEnd - curb;
+        across.Y = 0;
+        if (across.LengthSquared() < .01f) return (Vector3.Zero, 0);
+        var forward = across.Normalized();
+        var sideways = new Vector3(-forward.Z, 0, forward.X);
+        var spot = curb - forward * (.25f + Hash01(_seed, 70) * 1.05f)
+            + sideways * ((Hash01(_seed, 71) - .5f) * 1.5f);
+        var approach = spot - GlobalPosition;
+        approach.Y = 0;
+        if (approach.LengthSquared() < .18f * .18f)
+        {
+            PlayAnimation("idle");
+            return (Vector3.Zero, 0);
+        }
+        PlayAnimation("walk");
+        return (approach.Normalized(), _walkSpeed * .75f);
     }
 
     private void DetectDanger()
@@ -213,19 +294,98 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         }
     }
 
-    private Vector3 SeparationSteering()
+    private void OnAvoidanceVelocityComputed(Vector3 safeVelocity)
     {
-        var separation = Vector3.Zero;
+        safeVelocity.Y = 0f;
+        _safeAvoidanceVelocity = safeVelocity;
+        _hasAvoidanceVelocity = true;
+    }
+
+    private Vector3 ResolveAvoidanceVelocity(Vector3 preferred, float delta)
+    {
+        if (preferred.LengthSquared() < .0001f) return Vector3.Zero;
+        if (!UseReciprocalAvoidance) return preferred;
+        // If the navigation server has not produced a result yet, keep the
+        // original deterministic sidewalk behavior (no first-frame freeze).
+        if (!_hasAvoidanceVelocity) return preferred;
+
+        var safe = _safeAvoidanceVelocity;
+        safe.Y = 0f;
+        // The avoidance server reports velocity, not a teleport destination.
+        // Clamp to the character's existing state-dependent movement speed.
+        var speed = preferred.Length();
+        safe = safe.LimitLength(speed);
+        // The city uses authored sidewalk segments without a baked NavMesh.
+        // Some render/server configurations cannot produce avoidance velocities
+        // until the navigation map has synced. Do not freeze solitary NPCs.
+        if (safe.LengthSquared() < .0001f && !HasNearbyPedestrian(2.6f))
+            return preferred;
+
+        // Never walk backwards into a different sidewalk lane because of a
+        // temporary congestion: waiting is safer than crossing the curb.
+        if (safe.Dot(preferred) < -.01f) return Vector3.Zero;
+
+        if (State == PedestrianState.Crossing)
+            // Keep the painted crosswalk as the authoritative path. The
+            // crosswalk controller, not RVO, decides vehicle right of way.
+            return preferred;
+
+        if (State == PedestrianState.Walking)
+            return KeepInsideSidewalk(safe, preferred, delta);
+
+        return safe;
+    }
+
+    private bool HasNearbyPedestrian(float radius)
+    {
+        var radiusSquared = radius * radius;
         foreach (var node in GetTree().GetNodesInGroup("pedestrian"))
         {
-            if (node is not PedestrianAgent other || other == this) continue;
-            var away = GlobalPosition - other.GlobalPosition;
-            away.Y = 0;
-            var distance = away.Length();
-            if (distance is <= .01f or >= 1.15f) continue;
-            separation += away.Normalized() * (1f - distance / 1.15f);
+            if (node is not PedestrianAgent other || other == this ||
+                !IsInstanceValid(other) || other.IsQueuedForDeletion()) continue;
+            var difference = other.GlobalPosition - GlobalPosition;
+            difference.Y = 0f;
+            if (difference.LengthSquared() < radiusSquared) return true;
         }
-        return separation;
+        return false;
+    }
+
+    private Vector3 KeepInsideSidewalk(Vector3 safe, Vector3 preferred, float delta)
+    {
+        // RVO2 knows velocities, not city rules. If its proposed side-step
+        // leaves the narrow sidewalk corridor, keep to the authored route.
+        var from = _route[(_routeIndex + _route.Count - 1) % _route.Count].Position;
+        var to = _route[_routeIndex].Position;
+        var segment = to - from;
+        segment.Y = 0f;
+        var segmentLength = segment.LengthSquared();
+        if (segmentLength < .001f) return safe;
+
+        var next = GlobalPosition + safe * delta;
+        var offset = next - from;
+        offset.Y = 0f;
+        var t = Mathf.Clamp(offset.Dot(segment) / segmentLength, 0f, 1f);
+        var projected = from + segment * t;
+        var lateral = next - projected;
+        lateral.Y = 0f;
+        if (lateral.LengthSquared() <= .65f * .65f) return safe;
+
+        // A pedestrian spawned along a segment can begin more than one
+        // corridor radius away from the waypoint-to-waypoint line. Keep the
+        // direct route correction so an overly strict RVO bound cannot pin
+        // that agent beside the sidewalk indefinitely.
+        var currentOffset = GlobalPosition - from;
+        currentOffset.Y = 0f;
+        var currentT = Mathf.Clamp(currentOffset.Dot(segment) / segmentLength, 0f, 1f);
+        var currentLateral = GlobalPosition - (from + segment * currentT);
+        currentLateral.Y = 0f;
+        if (currentLateral.LengthSquared() > .65f * .65f) return preferred;
+
+        // Stay close to the sidewalk and let the solver try again next frame,
+        // instead of taking a shortcut through buildings or the traffic lane.
+        var along = segment.Normalized() * safe.Dot(segment.Normalized());
+        if (along.Dot(preferred) <= .001f) return Vector3.Zero;
+        return along;
     }
 
     private bool ShouldDoActivity() => Hash01(_seed, 1000 + _decisionIndex) < .30f;
@@ -242,6 +402,24 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             distance = candidate;
         }
         return nearest;
+    }
+
+    private void ReleaseCrossingAfterLeavingRoad()
+    {
+        if (_crossingController is null || State == PedestrianState.Crossing) return;
+        if (!IsInstanceValid(_crossingController) || !_crossingController.IsInsideTree())
+        {
+            _crossingController = null;
+            return;
+        }
+
+        var offset = GlobalPosition - _crossingController.GlobalPosition;
+        var across = _crossingAxis == TrafficAxis.NorthSouth ? MathF.Abs(offset.X) : MathF.Abs(offset.Z);
+        var along = _crossingAxis == TrafficAxis.NorthSouth ? MathF.Abs(offset.Z) : MathF.Abs(offset.X);
+        // A frightened pedestrian can flee sideways, parallel to traffic.
+        // Release protection once outside the junction/crosswalk area on
+        // either axis, avoiding a permanently red signal.
+        if (across > 5.3f || along > 7.5f) FinishCrossing();
     }
 
     private void FinishCrossing()

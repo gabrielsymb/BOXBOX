@@ -6,6 +6,10 @@ internal static class VerificationCatalog
 {
     internal static IReadOnlyList<VerificationCheck> Checks { get; } =
     [
+        new("north/south and east/west traffic use separate lanes", TrafficLaneGridChecks.OppositeFlowsUseSeparateLanes),
+        new("road maneuvers target junctions ahead of moving cars", TrafficLaneGridChecks.EveryManeuverTargetsAJunctionAhead),
+        new("route generation skips the current junction center", TrafficLaneGridChecks.JunctionCenterDoesNotRetargetItself),
+        new("intersection spawn exclusions work across negative coordinates", TrafficLaneGridChecks.SpawnExclusionAccountsForNegativeCoordinates),
         new("shared market exposes BOXBOX, rival and no-purchase", SharedMarketChecks.SharedMarketHasThreeAlternatives),
         new("choosing a rival does not mutate player stock or cash", SharedMarketChecks.RivalChoiceDoesNotMutatePlayerStore),
         new("closed BOXBOX is absent while an admissible rival remains", SharedMarketChecks.ClosedPlayerStoreIsNotOffered),

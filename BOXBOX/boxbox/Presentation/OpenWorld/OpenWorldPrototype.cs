@@ -34,7 +34,7 @@ public sealed partial class OpenWorldPrototype : Node3D
         var world = new OpenWorldStreamer { Player = _player };
         AddChild(world);
 
-        AddChild(new TrafficSpawner { Focus = _player });
+        AddChild(new TrafficSpawner { Focus = _player, World = world });
         AddChild(new PedestrianSpawner { Focus = _player });
 
         _camera = new Camera3D

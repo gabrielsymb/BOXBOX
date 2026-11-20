@@ -10,15 +10,16 @@ public sealed partial class IntersectionTrafficController : Node3D
     private const double GreenSeconds = 10.0;
     private const double YellowSeconds = 2.5;
     private const double AllRedSeconds = 1.0;
-    private const double ReservationTimeoutSeconds = 6.0;
-    // The stop-line center is 4.2 m from the junction center and a traffic car
-    // extends about 1.55 m forward. Keeping the half extent below 2.65 m avoids
-    // classifying a correctly stopped car as already inside the junction.
-    private const float OccupancySize = 5.0f;
-    private const float ExitProbeDistance = 5.6f;
-    private const float OpposingApproachDistance = 9.5f;
-    private const float InsideTieBreakSeconds = 2.0f;
-
+    private static readonly (IntersectionPhase Phase, double Duration)[] Schedule =
+    [
+        (IntersectionPhase.NorthSouthGreen, GreenSeconds),
+        (IntersectionPhase.NorthSouthYellow, YellowSeconds),
+        (IntersectionPhase.AllRedToEastWest, AllRedSeconds),
+        (IntersectionPhase.EastWestGreen, GreenSeconds),
+        (IntersectionPhase.EastWestYellow, YellowSeconds),
+        (IntersectionPhase.AllRedToNorthSouth, AllRedSeconds)
+    ];
+    private const double CycleSeconds = 2 * (GreenSeconds + YellowSeconds + AllRedSeconds);
     private readonly List<(TrafficAxis Axis, TrafficLightController Light)> _lights = [];
     private readonly Dictionary<TrafficAxis, int> _crossingPedestrians = new()
     {
@@ -29,8 +30,10 @@ public sealed partial class IntersectionTrafficController : Node3D
     private readonly Dictionary<TrafficVehicle, Admission> _admissions = [];
     private readonly Dictionary<TrafficVehicle, double> _insideStoppedSeconds = [];
     private double _remaining = GreenSeconds;
-    private double _elapsedSeconds;
-    private Area3D? _occupancyArea;
+    private TrafficVehicle? _reservedVehicle;
+    private TrafficAxis _reservedAxis;
+    private bool _reservedVehicleEntered;
+    private double _reservationStarted;
 
     public IntersectionPhase Phase { get; private set; } = IntersectionPhase.NorthSouthGreen;
     public double TimeRemaining => _remaining;
@@ -40,32 +43,37 @@ public sealed partial class IntersectionTrafficController : Node3D
     public override void _Ready()
     {
         AddToGroup("intersection_traffic_controller");
-        CreateOccupancyArea();
+        SynchronizePhase();
         ApplySignals();
     }
 
     public override void _Process(double delta)
     {
-        _elapsedSeconds += delta;
-        RemoveExpiredAdmissions();
-        _remaining -= delta;
-        if (_remaining > 0) return;
-        Phase = Phase switch
+        SynchronizePhase();
+        CleanupVehicleReservation();
+    }
+
+    private void SynchronizePhase()
+    {
+        // The engine clock survives streaming/unloading of individual city cells.
+        // Recreating a visual intersection must not restart its traffic cycle.
+        var elapsed = Time.GetTicksMsec() / 1000.0 % CycleSeconds;
+        foreach (var (phase, duration) in Schedule)
         {
-            IntersectionPhase.NorthSouthGreen => IntersectionPhase.NorthSouthYellow,
-            IntersectionPhase.NorthSouthYellow => IntersectionPhase.AllRedToEastWest,
-            IntersectionPhase.AllRedToEastWest => IntersectionPhase.EastWestGreen,
-            IntersectionPhase.EastWestGreen => IntersectionPhase.EastWestYellow,
-            IntersectionPhase.EastWestYellow => IntersectionPhase.AllRedToNorthSouth,
-            _ => IntersectionPhase.NorthSouthGreen
-        };
-        _remaining = Phase switch
-        {
-            IntersectionPhase.NorthSouthGreen or IntersectionPhase.EastWestGreen => GreenSeconds,
-            IntersectionPhase.NorthSouthYellow or IntersectionPhase.EastWestYellow => YellowSeconds,
-            _ => AllRedSeconds
-        };
-        ApplySignals();
+            if (elapsed >= duration)
+            {
+                elapsed -= duration;
+                continue;
+            }
+
+            _remaining = duration - elapsed;
+            if (Phase != phase)
+            {
+                Phase = phase;
+                ApplySignals();
+            }
+            return;
+        }
     }
 
     public override void _PhysicsProcess(double delta)
@@ -90,6 +98,9 @@ public sealed partial class IntersectionTrafficController : Node3D
         light.SetState(StateFor(axis));
     }
 
+    // Street furniture is replaceable; junction occupancy is not.
+    public void ClearLights() => _lights.Clear();
+
     public bool ShouldVehicleStop(TrafficAxis axis, float distanceToStopLine)
     {
         if (_crossingPedestrians[axis] > 0) return true;
@@ -98,74 +109,146 @@ public sealed partial class IntersectionTrafficController : Node3D
         return state == TrafficLightState.Yellow && distanceToStopLine > 2.2f;
     }
 
-    public bool TryEnter(TrafficVehicle vehicle, TrafficAxis axis, Vector3 exitDirection)
+    /// <summary>
+    /// A traffic signal grants the right-of-way, but only one AI vehicle may
+    /// occupy the crossing box at a time. This is intentionally conservative:
+    /// turn-to-turn conflicts must never rely on collision physics alone.
+    /// </summary>
+    public bool MayVehicleEnter(TrafficVehicle vehicle, TrafficAxis axis, float distanceToStopLine)
     {
-        if (_admissions.ContainsKey(vehicle) || _insideVehicles.Contains(vehicle)) return true;
-        if (StateFor(axis) == TrafficLightState.Red) return false;
+        CleanupVehicleReservation();
+        if (_reservedVehicle == vehicle) return true;
+        if (_reservedVehicle is not null || ShouldVehicleStop(axis, distanceToStopLine)) return false;
+        if (distanceToStopLine <= 2.8f && IsJunctionOccupiedByVehicle(vehicle)) return false;
 
-        var incomingDirection = vehicle.ActiveIncomingDirection;
-        if (!HasExitSpace(vehicle, exitDirection)) return false;
-        if (IsLeftTurn(incomingDirection, exitDirection) &&
-            HasHigherPriorityOpposingVehicle(vehicle, incomingDirection)) return false;
+        // Do not monopolize the junction while still far away from the stop line.
+        if (distanceToStopLine > 2.8f) return true;
 
-        // Conservative first slice: one autonomous admission at a time. Later
-        // tests may admit proven non-conflicting paths without weakening guards.
-        if (_insideVehicles.Any(other => other != vehicle) ||
-            _admissions.Keys.Any(other => other != vehicle)) return false;
-
-        _admissions[vehicle] = new Admission(axis, incomingDirection, exitDirection, _elapsedSeconds);
-        GD.Print($"JUNCTION_ENTER_GRANTED id={vehicle.DiagnosticId} axis={axis} exit={CardinalName(exitDirection)}");
+        _reservedVehicle = vehicle;
+        _reservedAxis = axis;
+        _reservedVehicleEntered = false;
+        _reservationStarted = Time.GetTicksMsec() / 1000.0;
         return true;
     }
 
-    public bool IsInside(TrafficVehicle vehicle) => _insideVehicles.Contains(vehicle);
-
-    public bool MayProceedInside(TrafficVehicle vehicle)
+    public bool HasVehicleReservation(TrafficVehicle vehicle)
     {
-        if (!_insideVehicles.Contains(vehicle)) return true;
-        var stalled = _insideVehicles
-            .Where(candidate => IsInstanceValid(candidate) &&
-                                _insideStoppedSeconds.GetValueOrDefault(candidate) > InsideTieBreakSeconds)
-            .ToArray();
-        if (stalled.Length < 2) return true;
-        var winnerId = stalled.Min(candidate => candidate.GetInstanceId());
-        return vehicle.GetInstanceId() == winnerId;
+        CleanupVehicleReservation();
+        return _reservedVehicle == vehicle;
     }
 
-    public void AppendInsideVehicleExclusions(Godot.Collections.Array<Rid> exclusions,
-        TrafficVehicle observer)
+    public void ReleaseVehicle(TrafficVehicle vehicle)
     {
-        if (!_insideVehicles.Contains(observer)) return;
-        foreach (var vehicle in _insideVehicles)
-            if (vehicle != observer && IsInstanceValid(vehicle)) exclusions.Add(vehicle.GetRid());
+        if (_reservedVehicle == vehicle) ClearVehicleReservation();
     }
 
-    public bool CanPedestrianStart(TrafficAxis crossedVehicleAxis, float crossingSeconds = 4.5f) =>
-        StateFor(crossedVehicleAxis) == TrafficLightState.Red && _remaining >= crossingSeconds;
+    private void CleanupVehicleReservation()
+    {
+        if (_reservedVehicle is null) return;
+        if (!IsInstanceValid(_reservedVehicle) || !_reservedVehicle.IsInsideTree() ||
+            _reservedVehicle.IsQueuedForDeletion())
+        {
+            ClearVehicleReservation();
+            return;
+        }
 
-    public void BeginPedestrianCrossing(TrafficAxis axis) => _crossingPedestrians[axis]++;
-    public void EndPedestrianCrossing(TrafficAxis axis) =>
+        var distance = _reservedVehicle.GlobalPosition.DistanceTo(GlobalPosition);
+        if (distance <= 4.8f) _reservedVehicleEntered = true;
+        // An authorization cannot outlive a red phase while its vehicle is
+        // still on the approach. Cars already in the box keep their clearance.
+        if (!_reservedVehicleEntered && ScheduledStateFor(_reservedAxis) == TrafficLightState.Red)
+        {
+            ClearVehicleReservation();
+            return;
+        }
+        // A car is clear only after it has traversed the junction, not while
+        // approaching the stop line. Release a stalled approach after a grace period.
+        var waited = Time.GetTicksMsec() / 1000.0 - _reservationStarted;
+        if ((_reservedVehicleEntered && distance > 7.0f) ||
+            (!_reservedVehicleEntered && waited > 6.0))
+            ClearVehicleReservation();
+    }
+
+    private void ClearVehicleReservation()
+    {
+        _reservedVehicle = null;
+        _reservedVehicleEntered = false;
+    }
+
+    public bool CanPedestrianStart(TrafficAxis crossedVehicleAxis, float crossingSeconds = 7.5f)
+    {
+        CleanupVehicleReservation();
+        // A painted crosswalk is about 8.5m wide. A 4.5-second start
+        // window left slower pedestrians in the roadway at the next green.
+        // Do not send a pedestrian into a junction occupied by a player car.
+        return _reservedVehicle is null &&
+            !IsJunctionOccupiedByVehicle(null) &&
+            ScheduledStateFor(crossedVehicleAxis) == TrafficLightState.Red &&
+            _remaining >= crossingSeconds;
+    }
+
+    private bool IsJunctionOccupiedByVehicle(TrafficVehicle? entering)
+    {
+        foreach (var group in new[] { "traffic_vehicle", "driveable_car" })
+        foreach (var node in GetTree().GetNodesInGroup(group))
+        {
+            if (node is not CharacterBody3D vehicle || vehicle == entering ||
+                !IsInstanceValid(vehicle) || vehicle.IsQueuedForDeletion()) continue;
+            var offset = vehicle.GlobalPosition - GlobalPosition;
+            offset.Y = 0;
+            // Cars waiting at the stop line must not count as occupying the
+            // junction; otherwise both axes can deadlock indefinitely.
+            if (offset.LengthSquared() < 4.2f * 4.2f) return true;
+        }
+        return false;
+    }
+
+    public void BeginPedestrianCrossing(TrafficAxis axis)
+    {
+        _crossingPedestrians[axis]++;
+        ApplySignals();
+    }
+
+    public void EndPedestrianCrossing(TrafficAxis axis)
+    {
         _crossingPedestrians[axis] = Math.Max(0, _crossingPedestrians[axis] - 1);
+        ApplySignals();
+    }
 
     public static TrafficAxis AxisFor(Vector3 direction) =>
         MathF.Abs(direction.Z) >= MathF.Abs(direction.X) ? TrafficAxis.NorthSouth : TrafficAxis.EastWest;
 
     public static IntersectionTrafficController? FindApproaching(
-        SceneTree tree, Vector3 position, Vector3 direction, out float distanceToStopLine)
+        SceneTree tree, Vector3 position, Vector3 direction, out float distanceToStopLine) =>
+        FindApproaching(tree, position, direction, out distanceToStopLine, out _);
+
+    public static IntersectionTrafficController? FindApproaching(
+        SceneTree tree, Vector3 position, Vector3 direction, out float distanceToStopLine,
+        out TrafficAxis approachAxis)
     {
         IntersectionTrafficController? best = null;
         distanceToStopLine = float.MaxValue;
+        approachAxis = AxisFor(direction);
         foreach (var node in tree.GetNodesInGroup("intersection_traffic_controller"))
         {
-            if (node is not IntersectionTrafficController candidate) continue;
+            if (node is not IntersectionTrafficController candidate || !candidate.IsInsideTree() ||
+                candidate.IsQueuedForDeletion()) continue;
             var toward = candidate.GlobalPosition - position;
             toward.Y = 0;
-            var along = toward.Dot(direction.Normalized());
-            var lateral = toward - direction.Normalized() * along;
+            // Determine the incoming road from the junction's location, not
+            // the car's instantaneous yaw: it may already be steering into a turn.
+            var incoming = MathF.Abs(toward.X) > MathF.Abs(toward.Z)
+                ? (toward.X >= 0 ? Vector3.Right : Vector3.Left)
+                : (toward.Z >= 0 ? Vector3.Back : Vector3.Forward);
+            if (direction.Dot(incoming) < 0.2f) continue;
+            var along = toward.Dot(incoming);
+            var lateral = toward - incoming * along;
             var stopDistance = along - 4.2f;
-            if (along <= 4.2f || stopDistance > 10f || lateral.Length() > 4f || stopDistance >= distanceToStopLine) continue;
+            if (along <= 4.2f || stopDistance > 10f || lateral.Length() > 4f ||
+                stopDistance >= distanceToStopLine) continue;
             best = candidate;
             distanceToStopLine = stopDistance;
+            approachAxis = AxisFor(incoming);
         }
         return best;
     }
@@ -177,7 +260,8 @@ public sealed partial class IntersectionTrafficController : Node3D
         var bestDistance = maximumDistance;
         foreach (var node in tree.GetNodesInGroup("intersection_traffic_controller"))
         {
-            if (node is not IntersectionTrafficController candidate) continue;
+            if (node is not IntersectionTrafficController candidate || !candidate.IsInsideTree() ||
+                candidate.IsQueuedForDeletion()) continue;
             var offset = candidate.GlobalPosition - crossingMidpoint;
             offset.Y = 0;
             var distance = offset.Length();
@@ -188,114 +272,10 @@ public sealed partial class IntersectionTrafficController : Node3D
         return best;
     }
 
-    private void CreateOccupancyArea()
-    {
-        _occupancyArea = new Area3D
-        {
-            Name = "JunctionOccupancy",
-            Position = Vector3.Up * 0.8f,
-            CollisionLayer = 0,
-            CollisionMask = OpenWorldCollisionLayers.TrafficVehicle,
-            Monitoring = true,
-            Monitorable = false
-        };
-        _occupancyArea.AddChild(new CollisionShape3D
-        {
-            Name = "JunctionOccupancyShape",
-            Shape = new BoxShape3D { Size = new Vector3(OccupancySize, 2f, OccupancySize) }
-        });
-        _occupancyArea.BodyEntered += OnBodyEntered;
-        _occupancyArea.BodyExited += OnBodyExited;
-        AddChild(_occupancyArea);
-    }
+    private TrafficLightState StateFor(TrafficAxis axis) =>
+        _crossingPedestrians[axis] > 0 ? TrafficLightState.Red : ScheduledStateFor(axis);
 
-    private void OnBodyEntered(Node3D body)
-    {
-        if (body is not TrafficVehicle vehicle) return;
-        _insideVehicles.Add(vehicle);
-        _insideStoppedSeconds[vehicle] = 0;
-        vehicle.OnEnteredIntersection(this);
-        GD.Print($"JUNCTION_INSIDE id={vehicle.DiagnosticId} count={_insideVehicles.Count}");
-    }
-
-    private void OnBodyExited(Node3D body)
-    {
-        if (body is not TrafficVehicle vehicle) return;
-        RemoveVehicle(vehicle);
-        vehicle.OnExitedIntersection(this);
-        GD.Print($"JUNCTION_EXIT id={vehicle.DiagnosticId} count={_insideVehicles.Count}");
-    }
-
-    private void RemoveVehicle(TrafficVehicle vehicle)
-    {
-        _insideVehicles.Remove(vehicle);
-        _insideStoppedSeconds.Remove(vehicle);
-        _admissions.Remove(vehicle);
-    }
-
-    private void RemoveExpiredAdmissions()
-    {
-        foreach (var (vehicle, admission) in _admissions.ToArray())
-        {
-            if (IsInstanceValid(vehicle) && (_insideVehicles.Contains(vehicle) ||
-                _elapsedSeconds - admission.GrantedAtSeconds <= ReservationTimeoutSeconds)) continue;
-            _admissions.Remove(vehicle);
-            if (IsInstanceValid(vehicle)) vehicle.OnAdmissionExpired(this);
-        }
-    }
-
-    private bool HasExitSpace(TrafficVehicle vehicle, Vector3 exitDirection)
-    {
-        var direction = Cardinal(exitDirection);
-        var center = GlobalPosition + RoadNodeGraph.LaneOffsetFor(direction) + direction * ExitProbeDistance;
-        center.Y = vehicle.GlobalPosition.Y + 0.62f;
-        var yaw = Mathf.Atan2(-direction.X, -direction.Z);
-        var query = new PhysicsShapeQueryParameters3D
-        {
-            Shape = new BoxShape3D { Size = new Vector3(1.55f, 1.2f, 3.4f) },
-            Transform = new Transform3D(new Basis(Vector3.Up, yaw), center),
-            CollisionMask = OpenWorldCollisionLayers.TrafficVehicle |
-                            OpenWorldCollisionLayers.DriveableVehicle,
-            Margin = 0.05f,
-            Exclude = new Godot.Collections.Array<Rid> { vehicle.GetRid() }
-        };
-        return GetWorld3D().DirectSpaceState.IntersectShape(query, 1).Count == 0;
-    }
-
-    private bool HasHigherPriorityOpposingVehicle(TrafficVehicle vehicle, Vector3 incomingDirection)
-    {
-        foreach (var node in GetTree().GetNodesInGroup("traffic_vehicle"))
-        {
-            if (node is not TrafficVehicle other || other == vehicle || !IsInstanceValid(other)) continue;
-            var offset = other.GlobalPosition - GlobalPosition;
-            offset.Y = 0;
-            if (offset.Length() > OpposingApproachDistance) continue;
-            if (other.ActiveIncomingDirection.Dot(-incomingDirection) < 0.8f) continue;
-            if (_insideVehicles.Contains(other) || _admissions.ContainsKey(other)) return true;
-            if (other.DiagnosticId < vehicle.DiagnosticId) return true;
-        }
-        return false;
-    }
-
-    private static bool IsLeftTurn(Vector3 incoming, Vector3 outgoing) =>
-        Vector3.Up.Cross(Cardinal(incoming)).Dot(Cardinal(outgoing)) > 0.8f;
-
-    private static Vector3 Cardinal(Vector3 direction)
-    {
-        if (MathF.Abs(direction.X) > MathF.Abs(direction.Z))
-            return direction.X >= 0 ? Vector3.Right : Vector3.Left;
-        return direction.Z >= 0 ? Vector3.Back : Vector3.Forward;
-    }
-
-    private static string CardinalName(Vector3 direction)
-    {
-        var cardinal = Cardinal(direction);
-        if (cardinal == Vector3.Right) return "E";
-        if (cardinal == Vector3.Left) return "W";
-        return cardinal == Vector3.Back ? "S" : "N";
-    }
-
-    private TrafficLightState StateFor(TrafficAxis axis) => Phase switch
+    private TrafficLightState ScheduledStateFor(TrafficAxis axis) => Phase switch
     {
         IntersectionPhase.NorthSouthGreen when axis == TrafficAxis.NorthSouth => TrafficLightState.Green,
         IntersectionPhase.NorthSouthYellow when axis == TrafficAxis.NorthSouth => TrafficLightState.Yellow,
