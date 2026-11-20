@@ -27,6 +27,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
     private bool _fleeAfterCower;
     private Vector3 _dangerSource;
 
+    [Export] public bool UseReciprocalAvoidance { get; set; } = true;
     public PedestrianState State { get; private set; } = PedestrianState.Walking;
 
     public void Initialize(PlayerController player, string visualPath, uint seed)
@@ -77,7 +78,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         _avoidance = new NavigationAgent3D
         {
             Name = "PedestrianRvoAvoidance",
-            AvoidanceEnabled = true,
+            AvoidanceEnabled = UseReciprocalAvoidance,
             Use3DAvoidance = false,
             Radius = MathF.Max(.24f, _bodyHeight * .32f),
             Height = _bodyHeight,
@@ -149,7 +150,16 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             ? desired.Normalized() * speed : Vector3.Zero;
         // Submit every frame, including zeros: pausing pedestrians remain
         // visible to nearby RVO agents as stationary obstacles.
-        if (_avoidance is not null) _avoidance.Velocity = preferredVelocity;
+        if (_avoidance is not null)
+        {
+            // The Remote inspector can toggle the solver during an A/B test.
+            if (_avoidance.AvoidanceEnabled != UseReciprocalAvoidance)
+            {
+                _avoidance.AvoidanceEnabled = UseReciprocalAvoidance;
+                _hasAvoidanceVelocity = false;
+            }
+            if (UseReciprocalAvoidance) _avoidance.Velocity = preferredVelocity;
+        }
 
         var horizontal = ResolveAvoidanceVelocity(preferredVelocity, (float)delta);
         if (horizontal.LengthSquared() > .001f)
@@ -289,6 +299,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
     private Vector3 ResolveAvoidanceVelocity(Vector3 preferred, float delta)
     {
         if (preferred.LengthSquared() < .0001f) return Vector3.Zero;
+        if (!UseReciprocalAvoidance) return preferred;
         // If the navigation server has not produced a result yet, keep the
         // original deterministic sidewalk behavior (no first-frame freeze).
         if (!_hasAvoidanceVelocity) return preferred;
@@ -299,6 +310,11 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         // Clamp to the character's existing state-dependent movement speed.
         var speed = preferred.Length();
         safe = safe.LimitLength(speed);
+        // The city uses authored sidewalk segments without a baked NavMesh.
+        // Some render/server configurations cannot produce avoidance velocities
+        // until the navigation map has synced. Do not freeze solitary NPCs.
+        if (safe.LengthSquared() < .0001f && !HasNearbyPedestrian(2.6f))
+            return preferred;
 
         // Never walk backwards into a different sidewalk lane because of a
         // temporary congestion: waiting is safer than crossing the curb.
@@ -313,6 +329,20 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             return KeepInsideSidewalk(safe, preferred, delta);
 
         return safe;
+    }
+
+    private bool HasNearbyPedestrian(float radius)
+    {
+        var radiusSquared = radius * radius;
+        foreach (var node in GetTree().GetNodesInGroup("pedestrian"))
+        {
+            if (node is not PedestrianAgent other || other == this ||
+                !IsInstanceValid(other) || other.IsQueuedForDeletion()) continue;
+            var difference = other.GlobalPosition - GlobalPosition;
+            difference.Y = 0f;
+            if (difference.LengthSquared() < radiusSquared) return true;
+        }
+        return false;
     }
 
     private Vector3 KeepInsideSidewalk(Vector3 safe, Vector3 preferred, float delta)
