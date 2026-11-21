@@ -70,7 +70,10 @@ public sealed partial class BoxboxDayNightCycle : Node3D
         var environment = WorldEnvironment?.Environment;
         if (environment is null) return;
         environment.TonemapExposure = night ? 0.9f : 0.55f;
-        environment.AmbientLightEnergy = night ? 0.36f : Mathf.Lerp(0.32f, 0.44f, daylight);
-        environment.AmbientLightColor = night ? Color.FromHtml("8796b5") : Color.FromHtml("cdd7df");
+        // Keep the sky as the ambient source so the fill follows the current
+        // sky palette instead of tinting every face with one fixed color.
+        environment.AmbientLightSource = Godot.Environment.AmbientSource.Sky;
+        environment.AmbientLightSkyContribution = night ? 0.68f : 0.82f;
+        environment.AmbientLightEnergy = night ? 0.44f : Mathf.Lerp(0.48f, 0.60f, daylight);
     }
 }

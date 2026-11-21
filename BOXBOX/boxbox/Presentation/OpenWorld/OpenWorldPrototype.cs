@@ -93,9 +93,12 @@ public sealed partial class OpenWorldPrototype : Node3D
         {
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = skyMaterial },
-            AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color(0.57f, 0.65f, 0.75f),
-            AmbientLightEnergy = 0.42f,
+            // Let the sky fill faces that do not receive direct sun. A fixed
+            // blue color made the diorama look flat and disconnected from the
+            // actual sky during the day/night cycle.
+            AmbientLightSource = Godot.Environment.AmbientSource.Sky,
+            AmbientLightSkyContribution = 0.82f,
+            AmbientLightEnergy = 0.56f,
             TonemapMode = Godot.Environment.ToneMapper.Aces,
             TonemapExposure = 1.0f,
             FogEnabled = false,

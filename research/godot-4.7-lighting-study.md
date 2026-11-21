@@ -49,6 +49,20 @@ As faces degeneradas são candidatas aos triângulos visuais, mas não serão al
 - postes: emissão quente + OmniLight curta, sem sombras;
 - semáforos: emissão da lente real + OmniLight curta da cor ativa, sem geometria falsa.
 
+## Passe visual v1 — ambiente guiado pelo céu
+
+Na branch `visual/lighting-pass-v1`, o primeiro ajuste aplicado foi trocar a fonte
+de luz ambiente da cena principal de uma cor azul fixa para `AmbientSource.Sky`.
+Isso preserva a leitura de Compatibility e faz o preenchimento acompanhar o céu
+procedural durante o ciclo, sem introduzir SDFGI, bloom ou luzes falsas. A energia
+e a contribuição do céu ficam mais altas durante o dia e reduzidas à noite, mas a
+noite permanece legível sem depender de faróis.
+
+Hipótese: o preenchimento do céu deve recuperar as faces voltadas para longe do
+sol sem apagar o contraste das sombras direcionais. Critério: comparar capturas
+de dia e noite na mesma câmera; pista, lotes, personagem e veículos precisam
+continuar legíveis, com separação clara entre luz direta, ambiente e sombra.
+
 ## Critérios de aceitação
 
 1. pista, calçada, gramado, personagem e veículos legíveis à noite sem faróis;
