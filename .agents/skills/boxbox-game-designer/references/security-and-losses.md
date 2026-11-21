@@ -61,7 +61,7 @@ Antes de qualquer sorteio, aplique guardas determinísticas: loja aberta, prote�
 ```text
 risco-base
 × horário e evento local
-× perfil do segmento
+× valor e visibilidade dos itens
 × dinheiro acessível
 × visibilidade e rotina
 × histórico recente
@@ -190,7 +190,7 @@ Eventos relevantes:
 3. Funcionários com permissões, diferenças ocultas e investigação.
 4. Segurança treinada ou redundante, controles avançados, sinistros mais variados e futura perda por clientes.
 
-Para testar o sistema isoladamente, uma adega torna o trade-off mais visível por concentrar caixa e risco noturno. Compare políticas de nunca abandonar a entrada, sempre acompanhar sangrias e equilibrar exposição. Observe detecção, surpresa, cobertura, perda, fila, falta de troco e custo de segurança.
+Para testar o sistema isoladamente, um turno de pico da mercearia torna o conflito mais visível por concentrar atendimento e dinheiro no caixa. Compare políticas de nunca abandonar a entrada, sempre acompanhar sangrias e equilibrar exposição. Observe detecção, surpresa, cobertura, perda, fila, falta de troco e custo de segurança.
 
 ## Localização
 

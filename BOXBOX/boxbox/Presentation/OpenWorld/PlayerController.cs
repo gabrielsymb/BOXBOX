@@ -4,9 +4,12 @@ namespace Boxbox.Presentation.OpenWorld;
 
 public sealed partial class PlayerController : CharacterBody3D
 {
+    private const float PlayerHeight = 1.68f;
+    private const float CollisionHeight = 1.59f;
     private const float WalkSpeed = 3.2f;
     private const float SprintSpeed = 5.2f;
     private const float Gravity = 18f;
+    private const float CurbStepHeight = 0.19f;
     private const float FireIntervalSeconds = 0.22f;
 
     private CollisionShape3D? _collision;
@@ -22,8 +25,23 @@ public sealed partial class PlayerController : CharacterBody3D
     private Vector3 _aimPoint;
     private bool _hasAimPoint;
 
-    public Vector3 FocusPosition => _vehicle?.GlobalPosition ?? GlobalPosition;
+    public Vector3 FocusPosition => _vehicle?.GlobalPosition ?? Interior?.Door ?? GlobalPosition;
+    public Vector3 FocusHeading => _vehicle is { } vehicle ? -vehicle.GlobalBasis.Z : GlobalBasis.Z;
+    public bool IsDriving => _vehicle is not null;
+    public bool ShopMenuOpen { get; set; }
     public bool IsArmed => _armed;
+    internal StreetStore? Interior { get; private set; }
+
+    internal void SetInterior(StreetStore? store)
+    {
+        Interior = store;
+        if (store is null) return;
+        _armed = false;
+        _hasAimPoint = false;
+        _shotPoseRemaining = 0;
+        if (_weapon is not null) _weapon.Hide();
+        if (_aimMarker is not null) _aimMarker.Hide();
+    }
 
     public override void _Ready()
     {
@@ -38,17 +56,19 @@ public sealed partial class PlayerController : CharacterBody3D
         _collision = new CollisionShape3D
         {
             Name = "PlayerCollision",
-            Position = new Vector3(0, 0.37f, 0),
-            Shape = new CapsuleShape3D { Radius = 0.17f, Height = 0.74f }
+            Position = new Vector3(0, CollisionHeight / 2f, 0),
+            Shape = new CapsuleShape3D { Radius = 0.24f, Height = CollisionHeight }
         };
         AddChild(_collision);
 
-        var scene = GD.Load<PackedScene>("res://Assets/Characters/boxbox-protagonist.glb");
+        var scene = GD.Load<PackedScene>("res://Assets/Characters/NewCast/boxbox-player-fiel.glb");
         _model = scene.Instantiate<Node3D>();
-        _model.Name = "ApprovedProtagonistVisual";
-        VisualShadowSupport.NormalizeHeight(_model, 0.78f);
+        _model.Name = "ProtagonistVisual";
+        _model.RotateY(-Mathf.Pi / 2f);
+        VisualShadowSupport.NormalizeHeight(_model, PlayerHeight);
         VisualShadowSupport.AlignLowestPointToGround(_model, 0.02f);
         AddChild(_model);
+        InteriorRenderLayer.Include(_model);
         VisualShadowSupport.SetCastShadows(_model);
         _contactShadow = VisualShadowSupport.CreateContactShadow("PlayerContactShadow", new Vector2(0.72f, 0.52f));
         AddChild(_contactShadow);
@@ -62,7 +82,27 @@ public sealed partial class PlayerController : CharacterBody3D
         VisualShadowSupport.SetCastShadows(_aimMarker, false);
 
         _animations = FindDescendant<AnimationPlayer>(_model);
-        _weapon = FindDescendantByName(_model, "BOXBOX_WeaponShooter");
+        if (_animations is not null)
+        {
+            foreach (var clip in new[] { "idle", "walk", "run" })
+            {
+                if (_animations.HasAnimation(clip))
+                    _animations.GetAnimation(clip).LoopMode = Animation.LoopModeEnum.Linear;
+            }
+        }
+        var skeleton = FindDescendant<Skeleton3D>(_model);
+        var rightHand = skeleton is null ? null : Enumerable.Range(0, skeleton.GetBoneCount())
+            .Select(index => skeleton.GetBoneName(index).ToString())
+            .FirstOrDefault(name => name.EndsWith("RightHand", StringComparison.OrdinalIgnoreCase));
+        if (skeleton is not null && rightHand is not null)
+        {
+            var socket = new BoneAttachment3D { BoneName = rightHand };
+            skeleton.AddChild(socket);
+            _weapon = GD.Load<PackedScene>("res://Assets/Characters/NewCast/Props/weapon-shooter.glb")
+                .Instantiate<Node3D>();
+            _weapon.Scale = Vector3.One * 0.46f;
+            socket.AddChild(_weapon);
+        }
         if (_weapon is not null)
         {
             _weapon.Visible = false;
@@ -87,12 +127,19 @@ public sealed partial class PlayerController : CharacterBody3D
             return;
         }
 
-        if (Input.IsActionJustPressed("interact"))
+        if (ShopMenuOpen)
+        {
+            Velocity = new Vector3(0, IsOnFloor() ? 0 : Velocity.Y - Gravity * (float)delta, 0);
+            MoveAndSlide();
+            return;
+        }
+
+        if (Interior is null && Input.IsActionJustPressed("interact"))
         {
             TryEnterNearestVehicle();
         }
 
-        if (Input.IsActionJustPressed("equip_weapon"))
+        if (Interior is null && Input.IsActionJustPressed("equip_weapon"))
         {
             _armed = !_armed;
             if (_weapon is not null)
@@ -104,7 +151,7 @@ public sealed partial class PlayerController : CharacterBody3D
 
         _hasAimPoint = _armed && UpdateAimPoint();
 
-        if (_armed && _hasAimPoint && Input.IsActionPressed("fire") && _fireCooldown <= 0)
+        if (Interior is null && _armed && _hasAimPoint && Input.IsActionPressed("fire") && _fireCooldown <= 0)
         {
             Fire();
         }
@@ -129,7 +176,7 @@ public sealed partial class PlayerController : CharacterBody3D
             if (!_armed) Rotation = new Vector3(0, Mathf.Atan2(-direction.X, -direction.Z) + Mathf.Pi, 0);
             if (_shotPoseRemaining <= 0)
             {
-                PlayAnimation(Input.IsActionPressed("sprint") ? "sprint" : "walk");
+                PlayAnimation(Input.IsActionPressed("sprint") ? "run" : "walk");
             }
         }
         else if (_shotPoseRemaining <= 0)
@@ -137,7 +184,41 @@ public sealed partial class PlayerController : CharacterBody3D
             PlayAnimation(_armed ? "holding-both" : "idle");
         }
 
+        if (Interior is { } store)
+        {
+            var step = (float)delta;
+            var target = store.ClampInteriorPosition(GlobalPosition + Velocity * step);
+            Velocity = (target - GlobalPosition) / step;
+        }
+        else
+        {
+            TryStepUp(direction * speed * (float)delta);
+        }
         MoveAndSlide();
+    }
+
+    private void TryStepUp(Vector3 travel)
+    {
+        if (!IsOnFloor() || travel.LengthSquared() < 0.00001f)
+        {
+            return;
+        }
+
+        var wall = new KinematicCollision3D();
+        if (!TestMove(GlobalTransform, travel, wall) ||
+            Mathf.Abs(wall.GetNormal().Y) >= 0.95f ||
+            wall.GetCollider() is not StaticBody3D { Name: var obstacle } ||
+            (obstacle != "ExactLowLotCollision" && obstacle != RoadSurfaceCollision.CurbName &&
+             obstacle != RoadSurfaceCollision.AsphaltName))
+        {
+            return;
+        }
+
+        var lift = Vector3.Up * CurbStepHeight;
+        if (!TestMove(GlobalTransform, lift) && !TestMove(GlobalTransform.Translated(lift), travel))
+        {
+            GlobalPosition += lift;
+        }
     }
 
     private void Fire()
@@ -267,22 +348,15 @@ public sealed partial class PlayerController : CharacterBody3D
             return;
         }
 
-        foreach (var candidate in _animations.GetAnimationList())
+        var clips = _animations.GetAnimationList();
+        var clip = Array.Find(clips, name => name.Equals(token, StringComparison.OrdinalIgnoreCase));
+        if (clip is null && token.StartsWith("holding-both", StringComparison.Ordinal))
         {
-            var name = candidate.ToString();
-            if (!name.Contains(token, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (!restart && _animations.CurrentAnimation == name)
-            {
-                return;
-            }
-
-            _animations.Play(candidate);
-            return;
+            clip = Array.Find(clips, name => name.Equals("idle", StringComparison.OrdinalIgnoreCase));
+            restart = false;
         }
+        if (clip is not null && (restart || _animations.CurrentAnimation != clip))
+            _animations.Play(clip);
     }
 
     private static T? FindDescendant<T>(Node root) where T : Node
@@ -295,25 +369,6 @@ public sealed partial class PlayerController : CharacterBody3D
         foreach (var child in root.GetChildren())
         {
             var result = FindDescendant<T>(child);
-            if (result is not null)
-            {
-                return result;
-            }
-        }
-
-        return null;
-    }
-
-    private static Node3D? FindDescendantByName(Node root, string name)
-    {
-        if (root is Node3D node3D && root.Name.ToString().Contains(name, StringComparison.OrdinalIgnoreCase))
-        {
-            return node3D;
-        }
-
-        foreach (var child in root.GetChildren())
-        {
-            var result = FindDescendantByName(child, name);
             if (result is not null)
             {
                 return result;

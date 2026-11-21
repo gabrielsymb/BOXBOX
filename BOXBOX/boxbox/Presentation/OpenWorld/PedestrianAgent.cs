@@ -37,16 +37,19 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         _walkSpeed = 1.22f + Hash01(seed, 7) * 0.52f;
         var visual = GD.Load<PackedScene>(visualPath).Instantiate<Node3D>();
         visual.Name = "PedestrianVisual";
-        var child = visualPath.Contains("Schoolkid", StringComparison.OrdinalIgnoreCase);
-        var targetHeight = child ? .62f : .74f + Hash01(seed, 11) * .08f;
+        var targetHeight = 1.53f + Hash01(seed, 11) * .19f;
         _bodyHeight = targetHeight;
-        // These animated NPC GLBs contain a 0.01 armature conversion transform.
-        // Godot's mesh AABB therefore cannot be used to scale their skeleton root.
-        // Source heights were batch-measured from the actual GLBs in Blender.
-        visual.Scale = Vector3.One * (targetHeight / SourceHeight(visualPath));
+        VisualShadowSupport.NormalizeHeight(visual, targetHeight);
+        VisualShadowSupport.AlignLowestPointToGround(visual, 0.006f);
         AddChild(visual);
+        CharacterVertexPalette.Apply(visual);
         VisualShadowSupport.SetCastShadows(visual);
         _animations = FindAnimationPlayer(visual);
+        if (_animations is not null)
+        {
+            foreach (var clip in _animations.GetAnimationList())
+                _animations.GetAnimation(clip).LoopMode = Animation.LoopModeEnum.Linear;
+        }
         AddChild(VisualShadowSupport.CreateContactShadow("PedestrianContactShadow", new Vector2(.62f, .46f)));
     }
 
@@ -64,7 +67,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
             Position = new Vector3(0, _bodyHeight * .48f, 0),
             Shape = new CapsuleShape3D
             {
-                Radius = _bodyHeight * .2f,
+                Radius = _bodyHeight * .145f,
                 Height = _bodyHeight * .96f
             }
         });
@@ -164,7 +167,7 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         var horizontal = ResolveAvoidanceVelocity(preferredVelocity, (float)delta);
         if (horizontal.LengthSquared() > .001f)
         {
-            // The Mini Characters rigs face +Z, opposite Godot's conventional -Z.
+            // The character models face +Z.
             Rotation = new Vector3(0, Mathf.Atan2(-horizontal.X, -horizontal.Z) + Mathf.Pi, 0);
         }
         var vertical = IsOnFloor() ? 0f : Velocity.Y - Gravity * (float)delta;
@@ -472,18 +475,5 @@ public sealed partial class PedestrianAgent : CharacterBody3D
         value *= 0x7FEB352Du;
         value ^= value >> 15;
         return (value & 0x00FFFFFFu) / 16777215f;
-    }
-
-    private static float SourceHeight(string path)
-    {
-        if (path.Contains("Cashier", StringComparison.OrdinalIgnoreCase)) return .145569f;
-        if (path.Contains("FoodCourier", StringComparison.OrdinalIgnoreCase)) return .150367f;
-        if (path.Contains("GrandmaShopper", StringComparison.OrdinalIgnoreCase)) return .150265f;
-        if (path.Contains("OfficeLady", StringComparison.OrdinalIgnoreCase)) return .150366f;
-        if (path.Contains("Schoolkid", StringComparison.OrdinalIgnoreCase)) return .132623f;
-        if (path.Contains("Shoplifter", StringComparison.OrdinalIgnoreCase)) return .151407f;
-        if (path.Contains("StockClerk", StringComparison.OrdinalIgnoreCase)) return .132901f;
-        if (path.Contains("StoreManager", StringComparison.OrdinalIgnoreCase)) return .140219f;
-        return .15f;
     }
 }

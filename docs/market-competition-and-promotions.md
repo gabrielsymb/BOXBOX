@@ -165,11 +165,9 @@ Assuntos incluem promoção, preço, ruptura, fila, horário, fiscalização, pr
 
 Rumor altera conhecimento e pesos de decisão; nunca cria promoção, dívida, estoque, multa ou infração. Jogador e concorrentes podem ignorar, acreditar ou gastar recurso para verificar. Informação envelhece e pode ser corrigida.
 
-## Identidade por segmento
+## Escolha na mercearia
 
-- **Mercearia:** preço, proximidade, frescor, disponibilidade de básicos e fila.
-- **Cosméticos:** tendência, variedade, recomendação, confiança, autenticidade e reputação.
-- **Adega:** horário, rapidez, bebida gelada, disponibilidade no pico, gelo, petiscos e eventos.
+Preço, proximidade, tempo de fila, frescor e disponibilidade dos básicos influenciam a escolha. Horário, clima e eventos podem aumentar a procura por bebidas geladas, gelo e petiscos.
 
 ## Invariantes e propriedades
 
@@ -206,5 +204,5 @@ O experimento passa se preço baixo não dominar sempre, saldão liberar caixa s
 - Eles serão visíveis fisicamente ou apenas por sinais e relatórios?
 - Pesquisa de mercado custa dinheiro, tempo ou ambos?
 - O jogador pode visitar concorrentes ou delega essa observação?
-- Rivais podem fechar, mudar de segmento ou cooperar futuramente?
+- Rivais podem fechar, mudar o sortimento ou cooperar futuramente?
 - Rumores deliberadamente falsos e sabotagem permanecerão fora do jogo ou entrarão em fase posterior?

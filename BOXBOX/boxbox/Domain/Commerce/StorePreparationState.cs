@@ -187,7 +187,7 @@ public sealed class StorePreparationState
             return Reject<SetProductPriceCommand>(PreparationRejectionReason.UnknownProduct);
         }
 
-        if (command.UnitPriceCents <= 0)
+        if (command.UnitPriceCents is <= 0 or > long.MaxValue / int.MaxValue)
         {
             return Reject<SetProductPriceCommand>(PreparationRejectionReason.InvalidPrice);
         }

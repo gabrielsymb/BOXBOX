@@ -55,23 +55,17 @@ public sealed class LivingWorldMarketPurchaseService
             opportunityId,
             "essentials",
             "meal",
-            quantity: 1);
-        var affordablePlayerStore = AffordablePlayerStore(state, actor.CashCents);
-        var affordableCompetitors = state.Competitors.Values
-            .Select(item => AffordableCompetitor(item, actor.CashCents))
-            .ToArray();
-        var market = new SharedMarketState(
-            Catalog,
-            affordablePlayerStore,
-            affordableCompetitors,
-            [opportunity]);
-        var profiles = affordableCompetitors.Select(item => new CompetitorProfile(
+            quantity: 1,
+            spendingLimitCents: actor.CashCents);
+        var competitors = state.Competitors.Values.ToArray();
+        var market = new SharedMarketState(Catalog, state.Store, competitors, [opportunity]);
+        var profiles = competitors.Select(item => new CompetitorProfile(
             item.CompetitorId,
             $"competitor.{item.CompetitorId}.name",
             ["essentials"],
             new CompetitorPublicAttributes("neighborhood", convenience: 560, reputation: 540)))
             .ToArray();
-        var observations = affordableCompetitors
+        var observations = competitors
             .SelectMany(item => item.Offers
                 .Where(offer => offer.Targets(opportunity))
                 .Select(offer => new CompetitorOfferObservation(
@@ -123,37 +117,6 @@ public sealed class LivingWorldMarketPurchaseService
             decisionId,
             actorId,
             marketResult.Resolution);
-    }
-
-    private static StoreState AffordablePlayerStore(
-        LivingWorldState state,
-        long budgetCents)
-    {
-        if (!state.Store.TryGetUnitPriceCents("meal", out var priceCents) || priceCents > budgetCents)
-        {
-            return state.Store.Close();
-        }
-
-        return state.Store;
-    }
-
-    private static CompetitorMarketState AffordableCompetitor(
-        CompetitorMarketState competitor,
-        long budgetCents)
-    {
-        var offers = competitor.Offers.Select(offer => new CompetitorOfferState(
-            offer.OfferId,
-            offer.CategoryId,
-            offer.ProductId,
-            offer.UnitPriceCents,
-            offer.AvailableQuantity,
-            offer.IsActive && offer.UnitPriceCents <= budgetCents));
-        return CompetitorMarketState.Restore(
-            competitor.CompetitorId,
-            competitor.IsOpen,
-            competitor.AvailableServiceCapacity,
-            offers,
-            competitor.CompletedDecisionIds);
     }
 
     private static long PlayerPrice(LivingWorldState state) =>

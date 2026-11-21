@@ -1,0 +1,11 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Presentation/Dialogue/DialogueLine.cs" id="1"]
+[ext_resource type="AudioStream" path="res://Content/Dialogue/counter-greeting.wav" id="2"]
+
+[resource]
+script = ExtResource("1")
+Speaker = "Nando"
+Portuguese = "Opa, chegou bem. Quer separar o quê pra loja?"
+English = "Hey, good timing. What do you need for the shop?"
+Voice = ExtResource("2")

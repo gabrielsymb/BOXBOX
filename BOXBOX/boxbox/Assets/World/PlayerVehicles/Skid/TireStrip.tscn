@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://Assets/World/PlayerVehicles/Skid/tire-strip.obj" id="mesh"]
+[ext_resource type="Texture2D" path="res://Assets/World/PlayerVehicles/Skid/tire-rubber.png" id="rubber"]
+
+[sub_resource type="StandardMaterial3D" id="Rubber"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_texture = ExtResource("rubber")
+
+[node name="TireStrip" type="MeshInstance3D"]
+cast_shadow = 0
+mesh = ExtResource("mesh")
+material_override = SubResource("Rubber")

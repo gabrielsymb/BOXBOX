@@ -108,6 +108,12 @@ public sealed class SharedMarketState
         {
             case MarketPurchaseOutcomeKind.PlayerStoreSale:
                 {
+                    if (PlayerStore.TryGetUnitPriceCents(opportunity.ProductId, out var unitPrice) &&
+                        !opportunity.CanAfford(unitPrice))
+                    {
+                        return MarketResolutionAttempt.Rejected(this, MarketResolutionRejectionReason.ExceedsSpendingLimit);
+                    }
+
                     var saleAttempt = PlayerStore.CompleteSale(new SaleCommand(
                         command.DecisionId,
                         command.CustomerId,
@@ -134,6 +140,12 @@ public sealed class SharedMarketState
                         return MarketResolutionAttempt.Rejected(
                             this,
                             MarketResolutionRejectionReason.UnknownCompetitor);
+                    }
+
+                    var selectedOffer = competitor.Offers.FirstOrDefault(offer => offer.OfferId == command.SelectedOfferId);
+                    if (selectedOffer is not null && !opportunity.CanAfford(selectedOffer.UnitPriceCents))
+                    {
+                        return MarketResolutionAttempt.Rejected(this, MarketResolutionRejectionReason.ExceedsSpendingLimit);
                     }
 
                     var saleAttempt = competitor.CompleteSale(new CompetitorSaleCommand(

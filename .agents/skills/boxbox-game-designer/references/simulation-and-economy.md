@@ -16,7 +16,7 @@ demanda-base
 × dia-da-semana
 × sazonalidade
 × clima ou evento local
-× segmento
+× categoria do produto
 × reputação
 × preço relativo
 × disponibilidade percebida
@@ -99,12 +99,12 @@ Ofertas consideram sinais explicáveis de saúde, risco e histórico. O jogador 
 
 O modelo pode emitir uma `CreditOfferProposal`; um validador determinístico de contratos aceita ou rejeita tipos, faixas, cronologia, valor, juros, custo total, amortização, prazo e cláusulas permitidas antes de criar o contrato imutável. Propostas inválidas são rejeitadas e substituídas por uma política heurística limitada. Contrato e cálculos da dívida permanecem deterministas. Atraso e inadimplência precisam de consequências graduais e legíveis.
 
-## Identidade mecânica dos segmentos
+## Categorias da mercearia
 
-Modele os segmentos como composição de dados, não como subclasses independentes:
+Parametrize as diferenças entre categorias no catálogo:
 
 ```text
-SegmentDefinition
+Categoria de produto
 ├── catálogo e categorias
 ├── fornecedores
 ├── curvas de demanda
@@ -115,9 +115,7 @@ SegmentDefinition
 └── eventos e riscos próprios
 ```
 
-- **Mercearia:** frequência alta, margem apertada, perecibilidade e reposição constante.
-- **Cosméticos:** variedade e tendência, ticket maior, recomendação e risco de encalhe.
-- **Adega:** demanda concentrada em horários, clima e eventos, com picos e riscos operacionais específicos.
+Na mercearia, itens básicos têm compra frequente e margem apertada, perecíveis exigem atenção à validade e bebidas podem ter picos de demanda por horário, clima e eventos.
 
 ## Balanceamento e observabilidade
 

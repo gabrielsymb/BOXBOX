@@ -253,6 +253,29 @@ internal static class AuthoritativeMarketResolutionChecks
             "A repeated opportunity debited competitor stock twice.");
     }
 
+    internal static void SpendingLimitRejectionIsAtomic()
+    {
+        const string opportunityId = "over-budget";
+        var playerStore = NewOpenStore();
+        var rivalOffer = StandardCompetitorOffer("rival-rice", availableQuantity: 3);
+        var competitor = StandardCompetitorState("rival-market", offers: [rivalOffer]);
+        Require(playerStore.TryGetUnitPriceCents("rice", out var playerPrice), "Fixture needs a rice price.");
+        var limit = Math.Max(playerPrice, rivalOffer.UnitPriceCents);
+        Require(limit < Math.Min(playerPrice, rivalOffer.UnitPriceCents) * 2, "Fixture needs comparable prices.");
+        var opportunity = new MarketPurchaseOpportunity(opportunityId, "grocery", "rice", 2, limit);
+        var market = StandardMarketState(playerStore, [competitor], [opportunity]);
+
+        var player = market.Resolve(new ResolveMarketPurchaseCommand(
+            opportunityId, "over-budget-player", "buyer", MarketPurchaseOutcomeKind.PlayerStoreSale, playerStore.ShopId));
+        var rival = market.Resolve(new ResolveMarketPurchaseCommand(
+            opportunityId, "over-budget-rival", "buyer", MarketPurchaseOutcomeKind.CompetitorSale, competitor.CompetitorId, rivalOffer.OfferId));
+
+        Require(player.RejectionReason == MarketResolutionRejectionReason.ExceedsSpendingLimit &&
+                rival.RejectionReason == MarketResolutionRejectionReason.ExceedsSpendingLimit &&
+                ReferenceEquals(player.ResultingState, market) && ReferenceEquals(rival.ResultingState, market),
+            "Both stores must reject unaffordable quantities without modifying the market.");
+    }
+
     internal static void RejectedCompetitorCommitIsAtomic()
     {
         const string opportunityId = "authoritative-stale-rival";

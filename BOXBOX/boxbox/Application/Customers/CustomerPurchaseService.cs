@@ -116,7 +116,8 @@ public sealed class CustomerPurchaseService
         int quantity,
         ChoiceFeatures playerStorePerceivedFeatures,
         IReadOnlyCollection<AdmissibleMarketOffer> alternativeOffers,
-        IChoiceRandomSource randomSource)
+        IChoiceRandomSource randomSource,
+        long? spendingLimitCents = null)
     {
         ArgumentNullException.ThrowIfNull(customer);
         ArgumentNullException.ThrowIfNull(store);
@@ -132,7 +133,9 @@ public sealed class CustomerPurchaseService
         const string noPurchaseOptionId = "do-not-purchase";
         var playerStoreOptionId = $"purchase-at-{store.ShopId}";
         var options = new List<ChoiceOption>(alternativeOffers.Count + 2);
-        if (store.CanFulfill(productId, quantity))
+        if (store.CanFulfill(productId, quantity) &&
+            (spendingLimitCents is not { } limit ||
+                (store.TryGetUnitPriceCents(productId, out var price) && price <= limit / quantity)))
         {
             options.Add(new ChoiceOption(
                 playerStoreOptionId,

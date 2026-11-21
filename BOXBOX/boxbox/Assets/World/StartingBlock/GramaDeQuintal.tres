@@ -1,0 +1,19 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/leafy_grass/leafy_grass_diff_1k.jpg" id="diff"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/leafy_grass/leafy_grass_nor_gl_1k.jpg" id="normal"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/leafy_grass/leafy_grass_rough_1k.jpg" id="rough"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/leafy_grass/leafy_grass_disp_1k.png" id="height"]
+
+[resource]
+resource_name = "GramaDeQuintal"
+albedo_color = Color(0.68, 0.76, 0.66, 1)
+albedo_texture = ExtResource("diff")
+normal_enabled = true
+normal_scale = 0.78
+normal_texture = ExtResource("normal")
+roughness_texture = ExtResource("rough")
+heightmap_enabled = true
+heightmap_scale = 0.75
+heightmap_texture = ExtResource("height")
+texture_filter = 4

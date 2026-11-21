@@ -71,14 +71,44 @@ public static class GroceryDayOneScenario
             new("milk", "regular-milk", 4, 650)
         ]);
 
+    public static IReadOnlyList<SupplierOffer> SupplierOffers { get; } = Array.AsReadOnly(Offers);
+
     public static BusinessDayRunResult Run(
         ulong seed,
         IEnumerable<DayOneProductDecision>? decisions = null)
     {
-        var selectedDecisions = (decisions ?? DefaultDecisions).ToArray();
+        return RunPrepared(seed, PrepareOrder(decisions ?? DefaultDecisions));
+    }
+
+    public static PreparedOrder PrepareOrder(IEnumerable<DayOneProductDecision> decisions)
+    {
+        var selectedDecisions = decisions.ToArray();
         ValidateDecisions(selectedDecisions);
+        return new PreparedOrder(
+            PrepareStore(new ProductCatalog(Products), selectedDecisions), selectedDecisions);
+    }
+
+    public sealed class PreparedOrder
+    {
+        internal PreparedOrder(StorePreparationState preparation, DayOneProductDecision[] decisions)
+        {
+            Preparation = preparation;
+            Decisions = Array.AsReadOnly(decisions);
+        }
+
+        public long CashBalanceCents => Preparation.CashBalanceCents;
+        internal StorePreparationState Preparation { get; }
+        internal IReadOnlyList<DayOneProductDecision> Decisions { get; }
+    }
+
+    public static BusinessDayRunResult RunPrepared(ulong seed, PreparedOrder order) =>
+        StartPrepared(seed, order).Close();
+
+    public static GroceryTradingDay StartPrepared(ulong seed, PreparedOrder order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
         var catalog = new ProductCatalog(Products);
-        var preparation = PrepareStore(catalog, selectedDecisions);
+        var preparation = order.Preparation;
         var opened = preparation.OpenStore();
         if (!opened.Completed || opened.Completion is null)
         {
@@ -104,7 +134,7 @@ public static class GroceryDayOneScenario
             opened.Completion,
             [competitor],
             opportunities);
-        var plans = CreateCustomerPlans(selectedDecisions, opportunities);
+        var plans = CreateCustomerPlans(order.Decisions, opportunities);
         var competitorProfile = new CompetitorProfile(
             competitor.CompetitorId,
             "competitor.rival-market.name",
@@ -122,16 +152,7 @@ public static class GroceryDayOneScenario
             new SoftmaxCustomerChoiceEngine(temperature: 95),
             experienceLearningRate: 160,
             service);
-        var advance = simulation.AdvanceTo(ClosingMinute);
-        var closedMarketState = advance.MarketState.ClosePlayerStore();
-        var report = BusinessDayReport.Create(
-            seed,
-            OpeningCashCents,
-            preparation.Purchases,
-            advance.Events,
-            closedMarketState);
-
-        return new BusinessDayRunResult(report, advance.Events, closedMarketState);
+        return new GroceryTradingDay(seed, simulation, preparation.Purchases, plans.Select(item => item.DecisionMinute));
     }
 
     private static StorePreparationState PrepareStore(
@@ -180,7 +201,8 @@ public static class GroceryDayOneScenario
             $"day-one/{pair.Key}/{index + 1}",
             "grocery",
             pair.Key,
-            quantity: 1)))
+            quantity: 1,
+            spendingLimitCents: index % 2 == 0 ? 1_200 : 1_500)))
         .ToArray();
 
     private static MiniTurnCustomerPlan[] CreateCustomerPlans(
@@ -191,6 +213,7 @@ public static class GroceryDayOneScenario
             item => item.ProductId,
             item => item.SalePriceCents,
             StringComparer.Ordinal);
+        var comparisonByProduct = DefaultDecisions.ToDictionary(item => item.ProductId, item => item.SalePriceCents);
         var opportunityById = opportunities.ToDictionary(
             item => item.OpportunityId,
             StringComparer.Ordinal);
@@ -214,7 +237,7 @@ public static class GroceryDayOneScenario
                     Reputation: 560,
                     Familiarity: 520);
                 var rivalFeatures = new ChoiceFeatures(
-                    PriceAttractiveness(rivalPrice, playerPrice),
+                    PriceAttractiveness(rivalPrice, comparisonByProduct[productId]),
                     QueueComfort: 570,
                     Convenience: 560,
                     Reputation: 540,

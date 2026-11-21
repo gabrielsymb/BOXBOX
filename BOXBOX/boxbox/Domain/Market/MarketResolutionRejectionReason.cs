@@ -8,5 +8,6 @@ public enum MarketResolutionRejectionReason
     ProductRequired,
     PlayerSaleRejected,
     UnknownCompetitor,
-    CompetitorSaleRejected
+    CompetitorSaleRejected,
+    ExceedsSpendingLimit
 }

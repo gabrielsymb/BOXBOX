@@ -4,11 +4,7 @@ Atue como meu **lead game designer, systems designer e arquiteto de software**. 
 
 ## Conceito
 
-Quero criar o **BOXBOX**, um simulador de microempreendimento brasileiro para PC. O jogador começa sozinho, com pouco capital, abrindo uma pequena banca ou venda. Ele escolhe inicialmente entre três segmentos:
-
-- mercearia;
-- cosméticos;
-- adega.
+Quero criar o **BOXBOX**, um simulador de microempreendimento brasileiro para PC. O jogador começa sozinho, com pouco capital, abrindo uma pequena banca ou venda. O negócio é uma mercearia de conveniência, com alimentos, bebidas e itens de conveniência em geral. O jogador escolhe o mix de produtos dentro da loja.
 
 O BOXBOX adota **systemic game design**, **emergent gameplay** e **persistent world simulation**. Não é uma sequência de dias roteirizados em torno do protagonista. Sistemas econômicos, sociais, operacionais, temporais e informacionais compartilham estado e eventos; situações surgem da interação entre regras, agentes e recursos; e o mundo continua avançando independentemente da presença ou sobrevivência da empresa do jogador.
 
@@ -84,11 +80,7 @@ Elegibilidade para roubo é uma regra determinística anterior ao sorteio: loja 
 
 O incidente é um estado da loja, não do segurança contratado. Toda loja aberta possui proprietário ou funcionário responsável com acesso a um protocolo seguro básico, inclusive quando o jogador está ausente. Segurança melhora detecção e mitigação, mas nunca é pré-requisito para resolver o fluxo; uma loja pequena sem guarda não pode ficar travada durante um roubo.
 
-Os segmentos mudam o perfil de risco:
-
-- **Mercearia:** muitas transações e margens pequenas tornam diferenças menores difíceis de perceber.
-- **Cosméticos:** itens compactos e valiosos aumentam a exposição de estoque.
-- **Adega:** horários tardios, picos e caixa concentrado aumentam a importância de sangria, treinamento e proteção.
+Na mercearia, muitas transações e margens pequenas tornam diferenças menores difíceis de perceber. Horários de pico também podem concentrar dinheiro no caixa.
 
 Introduza o sistema em etapas: primeiro locais de caixa, sangria e conciliação; depois roubo abstrato, segurança e seguro básico; por fim furto interno, investigação e controles avançados quando funcionários já fizerem parte da progressão. Furto por clientes pode reutilizar a mesma arquitetura no futuro, mas não é obrigatório no primeiro escopo.
 
@@ -144,11 +136,7 @@ Preserve estes pilares:
 7. Usar o comércio de bairro e o MEI como identidade brasileira, sem exigir fidelidade burocrática total.
 8. Funcionar integralmente em pt-BR e inglês sem duplicar regras de jogo.
 
-Os três segmentos precisam ser mecanicamente diferentes, e não apenas trocar nomes e artes:
-
-- **Mercearia:** alto giro, margem menor, perecibilidade e reposição frequente.
-- **Cosméticos:** variedade, tendências, ticket maior e risco de encalhe.
-- **Adega:** picos por horário, clima e eventos, sazonalidade forte e riscos próprios.
+As categorias da mercearia criam decisões diferentes. Itens básicos pedem reposição frequente, perecíveis exigem atenção à validade e bebidas podem concentrar demanda em certos horários ou condições de clima.
 
 ## Direção da simulação e da IA
 
@@ -316,7 +304,7 @@ Com base neste briefing, produza agora:
 1. uma visão de produto de uma página;
 2. o loop principal e o arco de progressão;
 3. uma lista separando decisões confirmadas, hipóteses e questões abertas;
-4. um vertical slice mínimo com **um** segmento, poucos produtos, um fornecedor, um dia completo, clientes, estoque, preço e livro-caixa, incluindo uma amostra funcional em pt-BR e inglês;
+4. um vertical slice mínimo de mercearia com poucos produtos, um fornecedor, um dia completo, clientes, estoque, preço e livro-caixa, incluindo uma amostra funcional em pt-BR e inglês;
 5. os módulos e contratos essenciais da arquitetura, incluindo localização e uma porta nula de serviços de plataforma, sem escolher engine ou linguagem;
 6. os cinco maiores riscos de design/tecnologia e o experimento mais barato para testar cada um;
 7. uma recomendação objetiva do próximo artefato a criar;

@@ -1,0 +1,80 @@
+[gd_scene format=3]
+
+[ext_resource type="ArrayMesh" path="res://Assets/World/StartingBlock/Passeio.obj" id="Passeio"]
+[ext_resource type="Material" path="res://Assets/World/StartingBlock/Paralelepipedo.tres" id="PasseioMaterial"]
+[ext_resource type="ArrayMesh" path="res://Assets/World/StartingBlock/Patio.obj" id="Patio"]
+[ext_resource type="ArrayMesh" path="res://Assets/World/StartingBlock/Quintais.obj" id="Quintais"]
+[ext_resource type="PackedScene" path="res://Presentation/OpenWorld/Components/CasaTerrea.tscn" id="CasaTerrea"]
+[ext_resource type="PackedScene" path="res://Presentation/OpenWorld/Components/Sobrado.tscn" id="Sobrado"]
+[ext_resource type="PackedScene" path="res://Presentation/OpenWorld/Components/CasaDosFundos.tscn" id="CasaDosFundos"]
+[ext_resource type="PackedScene" path="res://Presentation/OpenWorld/Components/ArvoreCopaLarga.tscn" id="Arvore"]
+[ext_resource type="PackedScene" path="res://Assets/World/StartingBlock/city-pack-washing-line.glb" id="Varal"]
+[ext_resource type="PackedScene" path="res://Assets/World/Props/bench.glb" id="Banco"]
+[ext_resource type="PackedScene" path="res://Assets/World/Props/trashcan.glb" id="Lixeira"]
+
+[ext_resource type="ArrayMesh" path="res://Assets/World/StartingBlock/Canteiros.obj" id="Canteiros"]
+[ext_resource type="Material" path="res://Assets/World/StartingBlock/SoloDeQuintal.tres" id="Grama"]
+
+[ext_resource type="Material" path="res://Assets/World/StartingBlock/ConcretoDePatio.tres" id="PatioMaterial"]
+
+[ext_resource type="Material" path="res://Assets/World/StartingBlock/TerraBatida.tres" id="QuintaisMaterial"]
+
+[sub_resource type="BoxShape3D" id="BlockGround"]
+size = Vector3(24, 0.15, 24)
+
+[node name="ShopBlock" type="Node3D"]
+
+[node name="ExactLowLotCollision" type="StaticBody3D" parent="."]
+
+[node name="Shape" type="CollisionShape3D" parent="ExactLowLotCollision"]
+position = Vector3(18, 0.075, 18)
+shape = SubResource("BlockGround")
+
+[node name="Passeio" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = ExtResource("PasseioMaterial")
+mesh = ExtResource("Passeio")
+
+[node name="Patio" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = ExtResource("PatioMaterial")
+mesh = ExtResource("Patio")
+
+[node name="Quintais" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = ExtResource("QuintaisMaterial")
+mesh = ExtResource("Quintais")
+
+[node name="Canteiros" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = ExtResource("Grama")
+mesh = ExtResource("Canteiros")
+
+[node name="CasaTerrea" parent="." instance=ExtResource("CasaTerrea")]
+position = Vector3(24, 0.15, 11.3)
+rotation = Vector3(0, 3.141593, 0)
+
+[node name="Sobrado" parent="." instance=ExtResource("Sobrado")]
+position = Vector3(11.7, 0.15, 22.15)
+rotation = Vector3(0, 1.570796, 0)
+
+[node name="CasaDosFundos" parent="." instance=ExtResource("CasaDosFundos")]
+position = Vector3(24, 0.15, 22.2)
+rotation = Vector3(0, -1.570796, 0)
+
+[node name="ArvoreDoPasseio" parent="." instance=ExtResource("Arvore")]
+position = Vector3(9.25, 0.15, 11.2)
+
+[node name="BancoDaMercearia" parent="." instance=ExtResource("Banco")]
+position = Vector3(9.8, 0.15, 9.4)
+rotation = Vector3(0, 3.141593, 0)
+scale = Vector3(3.1, 1.75, 2.5)
+
+[node name="LixeiraDeServico" parent="." instance=ExtResource("Lixeira")]
+position = Vector3(17.65, 0.15, 13.2)
+scale = Vector3(1.7, 1.7, 1.7)
+
+[node name="VaralDaCasaDosFundos" parent="." instance=ExtResource("Varal")]
+position = Vector3(23.75, 0.18, 25.9)
+rotation = Vector3(0, -1.570796, 0)
+scale = Vector3(0.85, 0.85, 0.85)

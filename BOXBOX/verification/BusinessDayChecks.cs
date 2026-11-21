@@ -36,6 +36,58 @@ internal static class BusinessDayChecks
             "A rejected purchase cannot partially change cash or stock.");
     }
 
+    internal static void ExtremePriceCannotSellAboveCustomerBudget()
+    {
+        var decisions = GroceryDayOneScenario.DefaultDecisions
+            .Select(item => item.ProductId == "milk" ? item with { SalePriceCents = 100_000_000 } : item);
+        var result = GroceryDayOneScenario.Run(1, decisions);
+        var milk = result.Report.Products.Single(item => item.ProductId == "milk");
+
+        Require(milk.SoldUnits == 0 && milk.RemainingUnits == milk.PurchasedUnits,
+            "Milk priced at one million reais must remain unsold.");
+        Require(milk.SalesRevenueCents == 0, "Unaffordable milk must not credit the store.");
+        Require(milk.CompetitorSaleUnits > 0, "Affordable rival milk should remain available.");
+    }
+
+    internal static void SupplyRunTransfersOneConfirmedLoad()
+    {
+        var run = new GrocerySupplyRun();
+        Require(!run.RecordReservation() && !run.TryLoad(true) && !run.TryStartTrading(),
+            "A load cannot exist before the order is confirmed.");
+        Require(run.Order.TryConfirm() == 14_400 && run.RecordReservation(),
+            "The default order must reserve stock and debit the store once.");
+        Require(!run.RecordReservation() && run.Order.TryConfirm() is null &&
+                !run.TryLoad(false) && run.UnitsOnPickup == 0,
+            "Duplicate confirmation and pickup at the wrong location must not transfer stock.");
+        Require(run.TryLoad(true) && run.UnitsOnPickup == 15 && !run.TryLoad(true),
+            "Exactly the confirmed units must be in the pickup.");
+        Require(!run.TryUnload(false) && !run.TryStartTrading() && run.UnitsOnPickup == 15,
+            "Cargo must remain in the pickup until unloaded at BOXBOX.");
+        Require(run.TryUnload(true) && run.UnitsOnPickup == 0 && !run.TryUnload(true),
+            "Unloading once must clear the pickup and make delivery final.");
+        Require(run.TryStartTrading() && !run.TryStartTrading(),
+            "Only a delivered order can open trading.");
+    }
+
+    internal static void LiveDayMatchesBatchClose()
+    {
+        const ulong seed = 20261119;
+        var day = GroceryDayOneScenario.StartPrepared(seed, GroceryDayOneScenario.PrepareOrder(GroceryDayOneScenario.DefaultDecisions));
+        Require(day.LatestResolution is null && day.Minute == GroceryDayOneScenario.OpeningMinute,
+            "Opening the shop must not resolve future sales.");
+        day.AdvanceToNextCustomer();
+        Require(day.LatestResolution is not null && day.Minute > GroceryDayOneScenario.OpeningMinute,
+            "Advancing the schedule must resolve the first customer.");
+        while (day.HasPendingCustomers)
+        {
+            day.AdvanceToNextCustomer();
+        }
+        var closed = day.Close();
+        Require(Fingerprint(closed) == Fingerprint(GroceryDayOneScenario.Run(seed)),
+            "The interactive schedule must match the batch engine.");
+        Require(ReferenceEquals(closed, day.Close()), "Closing twice must not rerun the sales.");
+    }
+
     internal static void DayOneReplayIsDeterministic()
     {
         var first = GroceryDayOneScenario.Run(20261119);

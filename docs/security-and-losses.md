@@ -11,7 +11,7 @@
 
 ## Direção recomendada
 
-O sistema deve criar escolhas de gestão, não uma loteria. Quando um incidente é elegível, nenhum controle promete risco residual zero, mas perdas graves precisam refletir exposição, horário, segmento, controles, histórico e decisões do jogador. Loja fechada, proteção inicial ou intervalo mínimo entre incidentes podem tornar o evento inelegível por regra determinística. Toda ocorrência é reproduzível por seed e explicável nos relatórios quando descoberta.
+O sistema deve criar escolhas de gestão, não uma loteria. Quando um incidente é elegível, nenhum controle promete risco residual zero, mas perdas graves precisam refletir exposição, horário, valor dos itens, controles, histórico e decisões do jogador. Loja fechada, proteção inicial ou intervalo mínimo entre incidentes podem tornar o evento inelegível por regra determinística. Toda ocorrência é reproduzível por seed e explicável nos relatórios quando descoberta.
 
 O jogo separa três camadas:
 
@@ -67,7 +67,7 @@ Antes de calcular risco, uma guarda determinística verifica:
 Se qualquer condição falhar, não há sorteio. Somente depois o risco residual considera:
 
 - horário e eventos locais;
-- segmento e itens visíveis;
+- valor e visibilidade dos itens;
 - dinheiro acessível no caixa;
 - iluminação, alarme, cofre e layout;
 - rotina previsível de sangria;
@@ -155,11 +155,9 @@ Melhorias reduzem frequência, tempo de detecção e severidade; nunca criam imu
 
 A existência de armas e disparos no mundo não transforma o segurança em combatente automático nem recompensa resistência. O segurança detecta, alerta, orienta pessoas, cumpre protocolo, acompanha sangria e preserva evidências. Qualquer futura ação armada exige regras explícitas de admissibilidade, autoridade e consequência antes de entrar no conjunto válido.
 
-## Identidade por segmento
+## Risco na mercearia
 
-- **Mercearia:** volume alto esconde diferenças pequenas; sangria frequente compete com atendimento.
-- **Cosméticos:** estoque compacto e valioso torna contagem, acesso e câmera mais importantes.
-- **Adega:** picos noturnos e caixa concentrado elevam exposição; treinamento, alarme e seguro ganham peso.
+Volume alto esconde pequenas diferenças. Sangria compete com atendimento, especialmente em picos de movimento com mais dinheiro no caixa.
 
 ## Progressão
 
@@ -181,7 +179,7 @@ Segurança treinada ou equipe redundante, controles avançados, coberturas adici
 
 ## Menor experimento jogável
 
-Depois de validar vendas e sangrias sem crime, teste um único turno de **adega** com caixa, cofre, banco, troco mínimo, um segurança, indicador de exposição, roubo abstrato leve e apólice básica. O segurança alterna entre posto, pausa, escolta de sangria, alerta e protocolo; sua atenção pode estar focada, pressionada ou distraída. Compare em simulações três políticas: nunca abandonar a entrada, sempre acompanhar sangrias e equilibrar as duas exposições. O objetivo é garantir que nenhuma domine sempre e que toda falha seja explicável.
+Depois de validar vendas e sangrias sem crime, teste um único turno de pico da **mercearia** com caixa, cofre, banco, troco mínimo, um segurança, indicador de exposição, roubo abstrato leve e apólice básica. O segurança alterna entre posto, pausa, escolta de sangria, alerta e protocolo; sua atenção pode estar focada, pressionada ou distraída. Compare em simulações três políticas: nunca abandonar a entrada, sempre acompanhar sangrias e equilibrar as duas exposições. O objetivo é garantir que nenhuma domine sempre e que toda falha seja explicável.
 
 ## Indicadores para o jogador
 

@@ -82,6 +82,7 @@ public sealed class AdmissibleMarketOfferGenerator
             var matchingOffer = matchingOffers.FirstOrDefault(offer =>
                     offer.IsActive &&
                     offer.AvailableQuantity >= opportunity.Quantity &&
+                    opportunity.CanAfford(offer.UnitPriceCents) &&
                     observationsByBinding.ContainsKey((profile.CompetitorId, offer.OfferId)))
                 ?? matchingOffers[0];
 
@@ -93,6 +94,11 @@ public sealed class AdmissibleMarketOfferGenerator
             if (matchingOffer.AvailableQuantity < opportunity.Quantity)
             {
                 reasons.Add(MarketOfferPassabilityReason.InsufficientAvailability);
+            }
+
+            if (!opportunity.CanAfford(matchingOffer.UnitPriceCents))
+            {
+                reasons.Add(MarketOfferPassabilityReason.ExceedsSpendingLimit);
             }
 
             observationsByBinding.TryGetValue(

@@ -23,6 +23,8 @@ Se houver divergência, use esta precedência: decisão explícita mais recente 
 - Idioma padrão e fallback: português do Brasil (`pt-BR`).
 - Segundo idioma: inglês (`en`).
 - Plataforma-alvo inicial: PC.
+- O jogador começa em uma mercearia de conveniência, o único segmento jogável. O mix inclui alimentos, bebidas e itens de conveniência.
+- O abastecimento inicial acontece no mundo aberto. O jogador faz o pedido, vai fisicamente ao atacado na caminhonete, carrega a mercadoria e retorna à mercearia para descarregar. A navegação usa destino e rota compartilhados entre minimapa e mapa geral. A [missão de abastecimento](docs/grocery-supply-run.md) registra o fluxo.
 - Engine escolhida: Godot, com C# pela edição .NET. Godot 4.7.2 Stable é a versão recomendada para iniciar; reavaliar somente se surgir incompatibilidade concreta.
 - A implementação começa pelos motores de IA/comportamento. Eles serão módulos plugáveis no mesmo processo, isolados por contratos; processos separados ficam como opção futura se houver necessidade concreta.
 - Steam é a candidata principal conhecida, não uma decisão exclusiva.
@@ -35,7 +37,7 @@ Se houver divergência, use esta precedência: decisão explícita mais recente 
 - Fechar o jogo não transforma o protagonista em funcionário automático. Durante a ausência, só continuam tarefas já iniciadas/agendadas e ações de funcionários, contratos, equipamentos, automações ou políticas que realmente existam; sem operação delegada, a loja pode permanecer fechada enquanto o bairro avança.
 - O jogo terá um sistema de perdas e segurança: funcionários podem furtar, a loja pode sofrer roubo, sangrias reduzem a exposição de caixa e seguros mitigam parte do prejuízo.
 - O protagonista pode pegar, empunhar e disparar armas. As situações em que o disparo é admissível, suas consequências sistêmicas e sua relação com roubos ainda precisam de especificação; a existência da mecânica não revoga por si só o protocolo seguro nem transforma confronto em recompensa.
-- O protagonista canônico deriva do Kenney Mini Characters 2.0 `character-male-b`: homem branco, cabelo loiro, rosto sem barba e regata vermelho-alaranjada. A versão aprovada está em `BOXBOX/asset-library/reports/boxbox-protagonist-v1.blend`; o armature, as animações e o socket de arma devem ser preservados nas integrações.
+- O protagonista canônico é o personagem fornecido pelo criador do BOXBOX no pacote Manus, com versão otimizada em `Assets/Characters/NewCast/boxbox-player-fiel.glb`. Preserve as texturas, o rig e a locomoção ao integrar o modelo. Os personagens Kenney são referências históricas.
 - O mapa jogável cresce como mundo aberto em células determinísticas, mantendo separadas a simulação persistente e sua projeção 3D carregada ao redor do foco. Ruas, lotes elevados, rampas, prédios e vegetação visíveis usam assets aprovados; colisores invisíveis podem ser configurados por código.
 - A cidade usa geração híbrida, nunca sorteio independente por célula como resultado final. Bairros são contíguos, templates de quarteirão preservam zoneamento e landmarks reservam identidade; aleatoriedade apenas varia composições admissíveis dentro desse plano.
 - O protagonista pode entrar, sair e dirigir veículos. Combate, direção e exploração compartilham o mesmo mundo, mas propriedade, crime, testemunhas, polícia, dano, morte e recuperação exigem fatos e estados explícitos do domínio antes de produzirem consequências sistêmicas.

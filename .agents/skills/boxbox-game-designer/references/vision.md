@@ -62,13 +62,9 @@ O comércio precisa parecer vivo. Horários de pico, dias fracos, sazonalidade, 
 - **Expansão:** capacidade maior, novos riscos, segurança, auditoria, crédito e decisões de portfólio.
 - **Gestão:** o jogador define estratégia, acompanha indicadores e corrige a operação em vez de executar tudo.
 
-## Segmentos iniciais
+## Mercearia de conveniência
 
-- **Mercearia:** alto giro, margens menores, perecibilidade, compras frequentes e diferenças pequenas escondidas no volume.
-- **Cosméticos:** variedade, tendências, ticket maior, itens compactos e valiosos e risco de encalhe ou perda de estoque.
-- **Adega:** picos fortes por horário, clima e eventos; sazonalidade, operação tardia e maior exposição de caixa.
-
-Os segmentos devem compartilhar o mesmo núcleo de simulação e diferir por dados, curvas, catálogos, eventos e composição de riscos.
+O jogador começa com uma mercearia e expande o sortimento de alimentos, bebidas e itens de conveniência. Categorias compartilham o mesmo núcleo de simulação. Giro, margem, validade e picos de demanda variam por produto.
 
 ## Falha e continuidade
 
@@ -92,8 +88,7 @@ Avalie essas decisões a partir do que o jogador precisa ver e fazer, do custo d
 
 Um vertical slice deve provar o ciclo econômico e a sensação de loja viva com apenas:
 
-- um segmento;
-- uma loja pequena;
+- uma mercearia de conveniência pequena;
 - poucos SKUs com comportamentos diferentes;
 - um fornecedor normal e uma compra emergencial cara;
 - um dia completo com abertura e fechamento;
@@ -103,7 +98,7 @@ Um vertical slice deve provar o ciclo econômico e a sensação de loja viva com
 - seed fixa e execução sem interface para testes;
 - um conjunto pequeno, mas representativo, de telas e mensagens funcionando em pt-BR e inglês.
 
-Contratação, crédito complexo, impostos detalhados, três segmentos e produção extensa de assets podem entrar depois que essa fatia for divertida e confiável.
+Contratação, crédito complexo, impostos detalhados e produção extensa de assets podem entrar depois que essa fatia for divertida e confiável.
 
 Sangria e conciliação podem ser a primeira extensão do núcleo econômico. Roubo, seguro e segurança entram depois que locais de caixa funcionarem. Furto interno e investigação entram quando a contratação já estiver jogável.
 

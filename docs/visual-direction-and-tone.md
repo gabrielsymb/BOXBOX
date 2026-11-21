@@ -244,3 +244,19 @@ Essas vozes são conteúdo futuro, não confirmação de que todos esses persona
 - grau de personalização por paleta e acessórios sem reconstruir corpos modulares.
 
 Nenhuma dessas questões reabre a direção geral de diorama isométrico 3D low-poly e tom cômico autoconsciente.
+
+### Bairro inicial
+
+O primeiro comércio fica num bairro periférico de baixa renda. A leitura vem de escala modesta, materiais reparados e sinais de uso cotidiano. A mercearia usa reboco azul envelhecido e o atacado usa paredes de bloco aparente. Os dois interiores usam os pisos cartoon originais. As paredes têm geometria cartoon low-poly e recebem diretamente cor fotográfica, normais e rugosidade. A projeção em escala de mundo mantém a textura contínua entre módulos.
+
+O texto de interação em pt-BR pode ser direto e coloquial, como “Pra começar, separa cinco leites”. Moradores têm voz própria. O vocabulário varia com a pessoa e a situação, e o bairro não deve ser reduzido a uma única gíria, tom ou comportamento.
+
+### Revisão do protótipo de cenário
+
+As capturas de portfólio desta versão registram trabalho em andamento. A aprovação
+do conceito visual final depende da revisão das ruas, da escala dos postes e
+semáforos e da leitura distinta entre eles. Os personagens derivados do Kenney
+são provisórios e serão substituídos pelo elenco do novo acervo.
+
+As lojas usam um enquadramento interno com fundo preto e a rua volta ao sair pela
+porta. A câmera da rua e a câmera de pilotagem têm enquadramentos próprios.

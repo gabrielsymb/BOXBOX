@@ -1,0 +1,20 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/red_brick_plaster_patch_02/red_brick_plaster_patch_02_diff_1k.jpg" id="diff"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/red_brick_plaster_patch_02/red_brick_plaster_patch_02_nor_gl_1k.jpg" id="normal"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/red_brick_plaster_patch_02/red_brick_plaster_patch_02_rough_1k.jpg" id="rough"]
+
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/red_brick_plaster_patch_02/red_brick_plaster_patch_02_disp_1k.png" id="height"]
+
+[resource]
+resource_name = "TijoloRemendado"
+albedo_color = Color(0.96, 0.96, 0.94, 1)
+albedo_texture = ExtResource("diff")
+normal_enabled = true
+normal_scale = 0.48
+normal_texture = ExtResource("normal")
+roughness_texture = ExtResource("rough")
+heightmap_enabled = true
+heightmap_scale = 1.6
+heightmap_texture = ExtResource("height")
+texture_filter = 4
