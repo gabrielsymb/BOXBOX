@@ -1,0 +1,35 @@
+Credit lines for CC BY 4.0, https://creativecommons.org/licenses/by/4.0/
+
+If you share or re-host one of these mesh files under CC BY, keep its line with it
+(the same line covers that model's .fbx, .usdz, .usda and .obj). Under the Polyfork
+licence no credit is needed. LICENSE.txt has both.
+
+boombox.glb  Boombox by Polyfork (https://polyfork.dev/asset/boombox-d0048f), CC BY 4.0
+boxy-sedan-70s.glb  Boxy-sedan-70s by Polyfork (https://polyfork.dev/asset/boxy-sedan-70s-7d55f7), CC BY 4.0
+camper-van.glb  Camper-van by Polyfork (https://polyfork.dev/asset/camper-van-8d10e2), CC BY 4.0
+checkered-flag.glb  Checkered-flag by Polyfork (https://polyfork.dev/asset/checkered-flag-81784a), CC BY 4.0
+convertible-60s.glb  Convertible-60s by Polyfork (https://polyfork.dev/asset/convertible-60s-b76f89), CC BY 4.0
+diner-sign.glb  Diner-sign by Polyfork (https://polyfork.dev/asset/diner-sign-ab5f0a), CC BY 4.0
+gas-pump.glb  Gas-pump by Polyfork (https://polyfork.dev/asset/gas-pump-5014a8), CC BY 4.0
+guardrail.glb  Guardrail by Polyfork (https://polyfork.dev/asset/guardrail-d3bd42), CC BY 4.0
+hatchback-80s.glb  Hatchback-80s by Polyfork (https://polyfork.dev/asset/hatchback-80s-e95554), CC BY 4.0
+jukebox.glb  Jukebox by Polyfork (https://polyfork.dev/asset/jukebox-1e2ea6), CC BY 4.0
+lane-marking-decal.glb  Lane-marking-decal by Polyfork (https://polyfork.dev/asset/lane-marking-decal-d1a212), CC BY 4.0
+motel-sign.glb  Motel-sign by Polyfork (https://polyfork.dev/asset/motel-sign-21033b), CC BY 4.0
+muscle-car-60s.glb  Muscle-car-60s by Polyfork (https://polyfork.dev/asset/muscle-car-60s-524d46), CC BY 4.0
+oil-drum.glb  Oil-drum by Polyfork (https://polyfork.dev/asset/oil-drum-386c30), CC BY 4.0
+phone-booth.glb  Phone-booth by Polyfork (https://polyfork.dev/asset/phone-booth-10967f), CC BY 4.0
+pickup-truck-70s.glb  Pickup-truck-70s by Polyfork (https://polyfork.dev/asset/pickup-truck-70s-8c0080), CC BY 4.0
+picnic-table.glb  Picnic-table by Polyfork (https://polyfork.dev/asset/picnic-table-4ee33a), CC BY 4.0
+planter.glb  Planter by Polyfork (https://polyfork.dev/asset/planter-f0dab0), CC BY 4.0
+road-tile.glb  Road-tile by Polyfork (https://polyfork.dev/asset/road-tile-286319), CC BY 4.0
+sidewalk-tile.glb  Sidewalk-tile by Polyfork (https://polyfork.dev/asset/sidewalk-tile-09d894), CC BY 4.0
+speaker-post.glb  Speaker-post by Polyfork (https://polyfork.dev/asset/speaker-post-e1503d), CC BY 4.0
+station-wagon-70s.glb  Station-wagon-70s by Polyfork (https://polyfork.dev/asset/station-wagon-70s-11d67b), CC BY 4.0
+street-lamp.glb  Street-lamp by Polyfork (https://polyfork.dev/asset/street-lamp-b4fa26), CC BY 4.0
+street-tile.glb  Two-Lane Street Tile by Polyfork (https://polyfork.dev/asset/two-lane-street-tile-fe56b6), CC BY 4.0
+suitcase.glb  Suitcase by Polyfork (https://polyfork.dev/asset/suitcase-6c392f), CC BY 4.0
+tire.glb  Tire by Polyfork (https://polyfork.dev/asset/tire-ccf0eb), CC BY 4.0
+traffic-cone.glb  Traffic-cone by Polyfork (https://polyfork.dev/asset/traffic-cone-c421e4), CC BY 4.0
+traffic-light.glb  Traffic-light by Polyfork (https://polyfork.dev/asset/traffic-light-5e5ae6), CC BY 4.0
+wedge-coupe-80s.glb  Wedge-coupe-80s by Polyfork (https://polyfork.dev/asset/wedge-coupe-80s-9f8b5e), CC BY 4.0

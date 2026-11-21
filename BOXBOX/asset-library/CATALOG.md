@@ -4,12 +4,12 @@ Reiniciado em 19 de novembro de 2026.
 
 ## Estado atual
 
-Não há assets integrados ao build. Treze pacotes Kenney, o pacote Gobkit
-`human001` e duas famílias do Google Fonts estão preservados somente em
-`review/`; nada foi copiado para o projeto Godot. Os modelos, a HUD e
-as pranchas anteriores eram testes e foram removidos do projeto. A família visual
-de personagens foi confirmada como cartoon/toon low-poly em 19 de novembro de
-2026.
+Pacotes Kenney aprovados estão integrados ao build Godot, incluindo o
+personagem principal e os oito NPCs texturizados em
+`res://Assets/Characters/NPCs/`. O lote `NEW_ASSETS.zip` foi inventariado em
+20 de novembro de 2026. A primeira seleção de seis personagens Polyfork foi
+rejeitada por consistir apenas em material plano sem texturas; esses arquivos
+não permanecem no projeto.
 
 ## Aprovados visualmente, pendentes de auditoria técnica
 
