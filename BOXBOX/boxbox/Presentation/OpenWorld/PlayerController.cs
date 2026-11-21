@@ -4,6 +4,8 @@ namespace Boxbox.Presentation.OpenWorld;
 
 public sealed partial class PlayerController : CharacterBody3D
 {
+    private const float PlayerHeight = 1.68f;
+    private const float CollisionHeight = 1.59f;
     private const float WalkSpeed = 3.2f;
     private const float SprintSpeed = 5.2f;
     private const float Gravity = 18f;
@@ -38,15 +40,16 @@ public sealed partial class PlayerController : CharacterBody3D
         _collision = new CollisionShape3D
         {
             Name = "PlayerCollision",
-            Position = new Vector3(0, 0.37f, 0),
-            Shape = new CapsuleShape3D { Radius = 0.17f, Height = 0.74f }
+            Position = new Vector3(0, CollisionHeight / 2f, 0),
+            Shape = new CapsuleShape3D { Radius = 0.24f, Height = CollisionHeight }
         };
         AddChild(_collision);
 
-        var scene = GD.Load<PackedScene>("res://Assets/Characters/boxbox-protagonist.glb");
+        var scene = GD.Load<PackedScene>("res://Assets/Characters/NewCast/boxbox-player-fiel.glb");
         _model = scene.Instantiate<Node3D>();
         _model.Name = "ApprovedProtagonistVisual";
-        VisualShadowSupport.NormalizeHeight(_model, 0.78f);
+        _model.RotateY(-Mathf.Pi / 2f);
+        VisualShadowSupport.NormalizeHeight(_model, PlayerHeight);
         VisualShadowSupport.AlignLowestPointToGround(_model, 0.02f);
         AddChild(_model);
         VisualShadowSupport.SetCastShadows(_model);
@@ -62,7 +65,27 @@ public sealed partial class PlayerController : CharacterBody3D
         VisualShadowSupport.SetCastShadows(_aimMarker, false);
 
         _animations = FindDescendant<AnimationPlayer>(_model);
-        _weapon = FindDescendantByName(_model, "BOXBOX_WeaponShooter");
+        if (_animations is not null)
+        {
+            foreach (var clip in new[] { "idle", "walk", "run" })
+            {
+                if (_animations.HasAnimation(clip))
+                    _animations.GetAnimation(clip).LoopMode = Animation.LoopModeEnum.Linear;
+            }
+        }
+        var skeleton = FindDescendant<Skeleton3D>(_model);
+        var rightHand = skeleton is null ? null : Enumerable.Range(0, skeleton.GetBoneCount())
+            .Select(index => skeleton.GetBoneName(index).ToString())
+            .FirstOrDefault(name => name.EndsWith("RightHand", StringComparison.OrdinalIgnoreCase));
+        if (skeleton is not null && rightHand is not null)
+        {
+            var socket = new BoneAttachment3D { BoneName = rightHand };
+            skeleton.AddChild(socket);
+            _weapon = GD.Load<PackedScene>("res://Assets/Characters/NewCast/Props/weapon-shooter.glb")
+                .Instantiate<Node3D>();
+            _weapon.Scale = Vector3.One * 0.46f;
+            socket.AddChild(_weapon);
+        }
         if (_weapon is not null)
         {
             _weapon.Visible = false;
@@ -125,11 +148,11 @@ public sealed partial class PlayerController : CharacterBody3D
 
         if (direction.LengthSquared() > 0.001f)
         {
-            // The approved Kenney rig faces +Z while Godot's conventional forward is -Z.
+            // The rotated model faces +Z.
             if (!_armed) Rotation = new Vector3(0, Mathf.Atan2(-direction.X, -direction.Z) + Mathf.Pi, 0);
             if (_shotPoseRemaining <= 0)
             {
-                PlayAnimation(Input.IsActionPressed("sprint") ? "sprint" : "walk");
+                PlayAnimation(Input.IsActionPressed("sprint") ? "run" : "walk");
             }
         }
         else if (_shotPoseRemaining <= 0)
@@ -153,7 +176,7 @@ public sealed partial class PlayerController : CharacterBody3D
         flatAim.Y = 0;
         if (flatAim.LengthSquared() <= .001f) return;
         var forward = flatAim.Normalized();
-        var origin = GlobalPosition + Vector3.Up * .43f + forward * .22f;
+        var origin = GlobalPosition + Vector3.Up * (PlayerHeight * 0.55f) + forward * .22f;
         var targetPoint = new Vector3(_aimPoint.X, origin.Y, _aimPoint.Z);
         var shotDirection = (targetPoint - origin).Normalized();
         var query = PhysicsRayQueryParameters3D.Create(origin, origin + shotDirection * 35f);
@@ -267,22 +290,15 @@ public sealed partial class PlayerController : CharacterBody3D
             return;
         }
 
-        foreach (var candidate in _animations.GetAnimationList())
+        var clips = _animations.GetAnimationList();
+        var clip = Array.Find(clips, name => name.Equals(token, StringComparison.OrdinalIgnoreCase));
+        if (clip is null && token.StartsWith("holding-both", StringComparison.Ordinal))
         {
-            var name = candidate.ToString();
-            if (!name.Contains(token, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (!restart && _animations.CurrentAnimation == name)
-            {
-                return;
-            }
-
-            _animations.Play(candidate);
-            return;
+            clip = Array.Find(clips, name => name.Equals("idle", StringComparison.OrdinalIgnoreCase));
+            restart = false;
         }
+        if (clip is not null && (restart || _animations.CurrentAnimation != clip))
+            _animations.Play(clip);
     }
 
     private static T? FindDescendant<T>(Node root) where T : Node
@@ -295,25 +311,6 @@ public sealed partial class PlayerController : CharacterBody3D
         foreach (var child in root.GetChildren())
         {
             var result = FindDescendant<T>(child);
-            if (result is not null)
-            {
-                return result;
-            }
-        }
-
-        return null;
-    }
-
-    private static Node3D? FindDescendantByName(Node root, string name)
-    {
-        if (root is Node3D node3D && root.Name.ToString().Contains(name, StringComparison.OrdinalIgnoreCase))
-        {
-            return node3D;
-        }
-
-        foreach (var child in root.GetChildren())
-        {
-            var result = FindDescendantByName(child, name);
             if (result is not null)
             {
                 return result;

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://mqa1txesdbab"
-path="res://.godot/imported/boxbox-protagonist.glb-8568b8fdf1a9d2c68a5ccd6db6382060.scn"
+uid="uid://66p3wub45meu"
+path="res://.godot/imported/boxbox-player-fiel.glb-ac321635bae859d23ab0d11109b82051.scn"
 
 [deps]
 
-source_file="res://Assets/Characters/boxbox-protagonist.glb"
-dest_files=["res://.godot/imported/boxbox-protagonist.glb-8568b8fdf1a9d2c68a5ccd6db6382060.scn"]
+source_file="res://Assets/Characters/NewCast/boxbox-player-fiel.glb"
+dest_files=["res://.godot/imported/boxbox-player-fiel.glb-ac321635bae859d23ab0d11109b82051.scn"]
 
 [params]
 

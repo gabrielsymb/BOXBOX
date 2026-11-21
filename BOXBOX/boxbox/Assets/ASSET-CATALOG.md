@@ -5,7 +5,7 @@ runtime é feita por `WorldAssetCatalog`, não por esta documentação.
 
 ## Personagem
 
-- `res://Assets/Characters/boxbox-protagonist.glb`
+- `res://Assets/Characters/NewCast/boxbox-player-fiel.glb`
 
 ## Casas residenciais
 

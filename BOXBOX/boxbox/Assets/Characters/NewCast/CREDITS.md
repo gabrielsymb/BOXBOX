@@ -1,0 +1,2 @@
+- Protagonista: modelo e pacote de locomoção fornecidos pelo criador de BOXBOX por meio do [Manus](https://manus.im/share/file/33c72025-bcdc-478e-8dcf-179abdbeeed8). A malha de execução foi simplificada no Blender com UVs e rig preservados.
+- The separate held prop is from [Kenney Mini Characters](https://kenney.nl/assets/mini-characters), CC0.
