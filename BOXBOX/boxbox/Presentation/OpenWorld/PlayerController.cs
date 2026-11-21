@@ -20,6 +20,7 @@ public sealed partial class PlayerController : CharacterBody3D
     private DriveableCar? _vehicle;
     private double _fireCooldown;
     private double _shotPoseRemaining;
+    private bool _hasWeapon;
     private bool _armed;
     private Decal? _contactShadow;
     private Node3D? _aimMarker;
@@ -31,6 +32,7 @@ public sealed partial class PlayerController : CharacterBody3D
     public bool IsDriving => _vehicle is not null;
     public bool ShopMenuOpen { get; set; }
     public bool IsArmed => _armed;
+    public bool HasWeapon => _hasWeapon;
     internal StreetStore? Interior { get; private set; }
 
     internal void SetInterior(StreetStore? store)
@@ -41,7 +43,7 @@ public sealed partial class PlayerController : CharacterBody3D
         _hasAimPoint = false;
         _shotPoseRemaining = 0;
         if (_weapon is not null) _weapon.Hide();
-        if (_weaponBack is not null) _weaponBack.Show();
+        if (_weaponBack is not null) _weaponBack.Hide();
         if (_aimMarker is not null) _aimMarker.Hide();
     }
 
@@ -118,7 +120,7 @@ public sealed partial class PlayerController : CharacterBody3D
             }
         }
         if (_weapon is not null) _weapon.Hide();
-        if (_weaponBack is not null) _weaponBack.Show();
+        if (_weaponBack is not null) _weaponBack.Hide();
 
         PlayAnimation("idle");
     }
@@ -153,16 +155,12 @@ public sealed partial class PlayerController : CharacterBody3D
 
         if (Interior is null && Input.IsActionJustPressed("equip_weapon"))
         {
-            _armed = !_armed;
-            if (_weapon is not null)
+            if (_hasWeapon)
             {
-                _weapon.Visible = _armed;
+                _armed = !_armed;
+                UpdateWeaponVisibility(running: false);
+                if (_aimMarker is not null) _aimMarker.Visible = _armed;
             }
-            if (_weaponBack is not null)
-            {
-                _weaponBack.Visible = !_armed;
-            }
-            if (_aimMarker is not null) _aimMarker.Visible = _armed;
         }
 
         _hasAimPoint = _armed && UpdateAimPoint();
@@ -180,6 +178,8 @@ public sealed partial class PlayerController : CharacterBody3D
         }
 
         var speed = Input.IsActionPressed("sprint") ? SprintSpeed : WalkSpeed;
+        var running = _armed && Input.IsActionPressed("sprint") && direction.LengthSquared() > 0.001f;
+        UpdateWeaponVisibility(running);
         Velocity = new Vector3(direction.X * speed, Velocity.Y, direction.Z * speed);
         if (!IsOnFloor())
         {
@@ -362,6 +362,21 @@ public sealed partial class PlayerController : CharacterBody3D
         return Enumerable.Range(0, skeleton.GetBoneCount())
             .Select(index => skeleton.GetBoneName(index).ToString())
             .FirstOrDefault(name => name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void AcquireWeapon()
+    {
+        _hasWeapon = true;
+        _armed = false;
+        UpdateWeaponVisibility(running: false);
+    }
+
+    private void UpdateWeaponVisibility(bool running)
+    {
+        var showHand = _hasWeapon && _armed && !running;
+        var showBack = _hasWeapon && (!_armed || running);
+        if (_weapon is not null) _weapon.Visible = showHand;
+        if (_weaponBack is not null) _weaponBack.Visible = showBack;
     }
 
     private void PlayAnimation(string token, bool restart = false)
