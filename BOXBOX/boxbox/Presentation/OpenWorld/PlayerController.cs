@@ -15,6 +15,7 @@ public sealed partial class PlayerController : CharacterBody3D
     private CollisionShape3D? _collision;
     private Node3D? _model;
     private Node3D? _weapon;
+    private Node3D? _weaponBack;
     private AnimationPlayer? _animations;
     private DriveableCar? _vehicle;
     private double _fireCooldown;
@@ -40,6 +41,7 @@ public sealed partial class PlayerController : CharacterBody3D
         _hasAimPoint = false;
         _shotPoseRemaining = 0;
         if (_weapon is not null) _weapon.Hide();
+        if (_weaponBack is not null) _weaponBack.Show();
         if (_aimMarker is not null) _aimMarker.Hide();
     }
 
@@ -91,22 +93,32 @@ public sealed partial class PlayerController : CharacterBody3D
             }
         }
         var skeleton = FindDescendant<Skeleton3D>(_model);
-        var rightHand = skeleton is null ? null : Enumerable.Range(0, skeleton.GetBoneCount())
-            .Select(index => skeleton.GetBoneName(index).ToString())
-            .FirstOrDefault(name => name.EndsWith("RightHand", StringComparison.OrdinalIgnoreCase));
-        if (skeleton is not null && rightHand is not null)
+        if (skeleton is not null)
         {
-            var socket = new BoneAttachment3D { BoneName = rightHand };
-            skeleton.AddChild(socket);
-            _weapon = GD.Load<PackedScene>("res://Assets/Characters/NewCast/Props/weapon-shooter.glb")
-                .Instantiate<Node3D>();
-            _weapon.Scale = Vector3.One * 0.46f;
-            socket.AddChild(_weapon);
+            var rifleScene = GD.Load<PackedScene>("res://Assets/Characters/NewCast/Props/boxbox-rifle-fiel.glb");
+            var rightHand = FindBoneEndingWith(skeleton, "RightHand");
+            var spine = FindBoneEndingWith(skeleton, "Spine2") ?? FindBoneEndingWith(skeleton, "Spine1");
+            if (rifleScene is not null && rightHand is not null)
+            {
+                var handSocket = new BoneAttachment3D { BoneName = rightHand };
+                skeleton.AddChild(handSocket);
+                _weapon = rifleScene.Instantiate<Node3D>();
+                _weapon.Scale = Vector3.One * 0.16f;
+                handSocket.AddChild(_weapon);
+            }
+            if (rifleScene is not null && spine is not null)
+            {
+                var backSocket = new BoneAttachment3D { BoneName = spine };
+                skeleton.AddChild(backSocket);
+                _weaponBack = rifleScene.Instantiate<Node3D>();
+                _weaponBack.Scale = Vector3.One * 0.16f;
+                _weaponBack.Rotation = new Vector3(Mathf.Pi / 2f, 0.05f, 0.18f);
+                _weaponBack.Position = new Vector3(0.02f, -0.03f, -0.13f);
+                backSocket.AddChild(_weaponBack);
+            }
         }
-        if (_weapon is not null)
-        {
-            _weapon.Visible = false;
-        }
+        if (_weapon is not null) _weapon.Hide();
+        if (_weaponBack is not null) _weaponBack.Show();
 
         PlayAnimation("idle");
     }
@@ -145,6 +157,10 @@ public sealed partial class PlayerController : CharacterBody3D
             if (_weapon is not null)
             {
                 _weapon.Visible = _armed;
+            }
+            if (_weaponBack is not null)
+            {
+                _weaponBack.Visible = !_armed;
             }
             if (_aimMarker is not null) _aimMarker.Visible = _armed;
         }
@@ -339,6 +355,13 @@ public sealed partial class PlayerController : CharacterBody3D
         {
             _collision.SetDeferred(CollisionShape3D.PropertyName.Disabled, false);
         }
+    }
+
+    private static string? FindBoneEndingWith(Skeleton3D skeleton, string suffix)
+    {
+        return Enumerable.Range(0, skeleton.GetBoneCount())
+            .Select(index => skeleton.GetBoneName(index).ToString())
+            .FirstOrDefault(name => name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
     }
 
     private void PlayAnimation(string token, bool restart = false)
