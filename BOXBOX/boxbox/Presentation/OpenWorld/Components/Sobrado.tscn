@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://Assets/World/StartingBlock/sobrado.glb" id="Sobrado"]
+
+[sub_resource type="BoxShape3D" id="SobradoShape"]
+size = Vector3(3.9, 4.25, 4.1)
+
+[node name="Sobrado" type="StaticBody3D"]
+
+[node name="Modelo" parent="." instance=ExtResource("Sobrado")]
+scale = Vector3(4.6, 4.1, 4.4)
+
+[node name="Paredes" type="CollisionShape3D" parent="."]
+position = Vector3(0, 2.125, 0)
+shape = SubResource("SobradoShape")

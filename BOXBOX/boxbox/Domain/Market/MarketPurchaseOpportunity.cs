@@ -10,7 +10,8 @@ public sealed class MarketPurchaseOpportunity
         string opportunityId,
         string categoryId,
         string? productId,
-        int quantity)
+        int quantity,
+        long? spendingLimitCents = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(opportunityId);
         ArgumentException.ThrowIfNullOrWhiteSpace(categoryId);
@@ -26,6 +27,12 @@ public sealed class MarketPurchaseOpportunity
                 "A market opportunity quantity must be positive.");
         }
 
+        if (spendingLimitCents is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(spendingLimitCents));
+        }
+
+        SpendingLimitCents = spendingLimitCents;
         OpportunityId = opportunityId;
         CategoryId = categoryId;
         ProductId = productId;
@@ -36,5 +43,10 @@ public sealed class MarketPurchaseOpportunity
     public string CategoryId { get; }
     public string? ProductId { get; }
     public int Quantity { get; }
+    public long? SpendingLimitCents { get; }
+
+    public bool CanAfford(long unitPriceCents) =>
+        SpendingLimitCents is not { } limit || unitPriceCents <= limit / Quantity;
+
     public bool TargetsSpecificProduct => ProductId is not null;
 }

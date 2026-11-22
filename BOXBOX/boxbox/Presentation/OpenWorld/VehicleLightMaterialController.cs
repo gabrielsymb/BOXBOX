@@ -8,6 +8,13 @@ namespace Boxbox.Presentation.OpenWorld;
 /// </summary>
 public sealed partial class VehicleLightMaterialController : Node
 {
+    private static readonly Lazy<ImageTexture> EmissionMask = new(() =>
+    {
+        var pixel = Image.CreateEmpty(1, 1, false, Image.Format.Rgba8);
+        pixel.Fill(Colors.White);
+        return ImageTexture.CreateFromImage(pixel);
+    });
+
     private readonly List<StandardMaterial3D> _headlights = [];
     private readonly List<StandardMaterial3D> _taillights = [];
 
@@ -18,14 +25,14 @@ public sealed partial class VehicleLightMaterialController : Node
         SetTaillights(false);
     }
 
-    public void SetHeadlights(bool enabled)
+    public void SetHeadlights(bool enabled, float energy = 2.5f)
     {
-        SetEmission(_headlights, enabled, Color.FromHtml("fff4cc"), 2.5f);
+        SetEmission(_headlights, enabled, Color.FromHtml("fff4cc"), energy);
     }
 
     public void SetTaillights(bool enabled)
     {
-        SetEmission(_taillights, enabled, Color.FromHtml("ff1a1a"), 3f);
+        SetEmission(_taillights, enabled, Color.FromHtml("ff190d"), 0.85f);
     }
 
     private void Collect(Node node)
@@ -46,6 +53,8 @@ public sealed partial class VehicleLightMaterialController : Node
                 if (target is null) continue;
 
                 var instanceMaterial = (StandardMaterial3D)source.Duplicate();
+                instanceMaterial.EmissionOperator = BaseMaterial3D.EmissionOperatorEnum.Multiply;
+                instanceMaterial.EmissionTexture = EmissionMask.Value;
                 mesh.SetSurfaceOverrideMaterial(surface, instanceMaterial);
                 target.Add(instanceMaterial);
             }

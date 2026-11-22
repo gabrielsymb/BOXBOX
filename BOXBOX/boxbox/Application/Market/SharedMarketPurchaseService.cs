@@ -90,7 +90,8 @@ public sealed class SharedMarketPurchaseService
             opportunity.Quantity,
             playerStorePerceivedFeatures,
             generation.AdmissibleOffers,
-            randomSource);
+            randomSource,
+            opportunity.SpendingLimitCents);
 
         var command = CreateResolutionCommand(
             customer.CustomerId,

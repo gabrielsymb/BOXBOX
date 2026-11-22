@@ -1,0 +1,105 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Grocery/Hud/cash-frame.png" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/Grocery/cash-register.png" id="2"]
+[ext_resource type="Script" path="res://Presentation/Grocery/CashHud.cs" id="3"]
+
+[ext_resource type="Texture2D" path="res://Assets/Grocery/wallet-person.png" id="4"]
+
+[sub_resource type="StyleBoxTexture" id="1"]
+texture = ExtResource("1")
+texture_margin_left = 18.0
+texture_margin_top = 18.0
+texture_margin_right = 18.0
+texture_margin_bottom = 18.0
+content_margin_left = 15.0
+content_margin_top = 7.0
+content_margin_right = 15.0
+content_margin_bottom = 7.0
+modulate_color = Color(0.24, 0.37, 0.32, 1)
+
+[node name="CashHud" type="CanvasLayer"]
+layer = 2
+script = ExtResource("3")
+
+[node name="Frame" type="PanelContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -246.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 86.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("1")
+
+[node name="Content" type="HBoxContainer" parent="Frame"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 9
+
+[node name="Register" type="TextureRect" parent="Frame/Content"]
+custom_minimum_size = Vector2(47, 47)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Readout" type="VBoxContainer" parent="Frame/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Label" parent="Frame/Content/Readout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.91, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="Balance" type="Label" parent="Frame/Content/Readout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.99, 0.95, 0.86, 1)
+theme_override_font_sizes/font_size = 24
+
+[node name="WalletFrame" type="PanelContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -480.0
+offset_top = 24.0
+offset_right = -258.0
+offset_bottom = 86.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("1")
+
+[node name="Content" type="HBoxContainer" parent="WalletFrame"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 9
+
+[node name="Person" type="TextureRect" parent="WalletFrame/Content"]
+custom_minimum_size = Vector2(34, 34)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("4")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Readout" type="VBoxContainer" parent="WalletFrame/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Label" parent="WalletFrame/Content/Readout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.91, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="Balance" type="Label" parent="WalletFrame/Content/Readout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.99, 0.95, 0.86, 1)
+theme_override_font_sizes/font_size = 24

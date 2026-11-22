@@ -1,0 +1,15 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/concrete_floor_worn_001/concrete_floor_worn_001_diff_1k.jpg" id="Patio_diff"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/concrete_floor_worn_001/concrete_floor_worn_001_nor_gl_1k.jpg" id="Patio_nor_gl"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/concrete_floor_worn_001/concrete_floor_worn_001_rough_1k.jpg" id="Patio_rough"]
+
+[resource]
+resource_name = "ConcretoDePatio"
+albedo_color = Color(1.13, 1.13, 1.18, 1)
+albedo_texture = ExtResource("Patio_diff")
+normal_enabled = true
+normal_scale = 0.65
+normal_texture = ExtResource("Patio_nor_gl")
+roughness_texture = ExtResource("Patio_rough")
+texture_filter = 4

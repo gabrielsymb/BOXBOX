@@ -1,0 +1,450 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://Assets/World/Cargo/stock-box.glb" id="BulkCarton"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-produce-amber.glb" id="FruitAmber"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-produce-leaf.glb" id="FruitLeaf"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/NewCast/Pedestrians/boxbox-shopkeeper.glb" id="Shopkeeper"]
+[ext_resource type="Script" path="res://Presentation/Grocery/ShopShell.cs" id="Shell"]
+[ext_resource type="Material" path="res://Assets/Grocery/Interior/wholesaler-block-wall.tres" id="WallFinish"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/warehouse-floor.glb" id="Floor"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-market-gondola.glb" id="Bags"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-market-gondola.glb" id="Boxes"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-drink-gondola.glb" id="Cans"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/hand-truck.glb" id="Cart"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-chiller.glb" id="Cooler"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/cash-register.glb" id="Counter"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/wall-door-rotate.glb" id="Door"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-market-gondola.glb" id="End"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/freezer-finished.glb" id="Freezer"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/Fixtures/boxbox-produce-tomato.glb" id="Fruit"]
+[ext_resource type="PackedScene" path="res://Assets/Grocery/Interior/wall.glb" id="Wall"]
+
+[sub_resource type="BoxShape3D" id="FloorBounds"]
+size = Vector3(13, 0.18, 10)
+
+[sub_resource type="BoxShape3D" id="BagsBounds"]
+size = Vector3(0.77, 0.88, 0.67)
+
+[sub_resource type="BoxShape3D" id="BoxesBounds"]
+size = Vector3(0.77, 0.86, 0.67)
+
+[sub_resource type="BoxShape3D" id="CansBounds"]
+size = Vector3(0.79, 0.85, 0.61)
+
+[sub_resource type="BoxShape3D" id="CoolerBounds"]
+size = Vector3(0.98, 0.88, 0.46)
+
+[sub_resource type="BoxShape3D" id="CounterBounds"]
+size = Vector3(0.82, 0.57, 0.75)
+
+[sub_resource type="BoxShape3D" id="EndBounds"]
+size = Vector3(0.78, 1.02, 0.39)
+
+[sub_resource type="BoxShape3D" id="FreezerBounds"]
+size = Vector3(0.78, 0.33, 0.58)
+
+[sub_resource type="BoxShape3D" id="FruitBounds"]
+size = Vector3(0.65, 0.40, 0.63)
+
+[node name="SupplierInterior" type="Node3D"]
+script = ExtResource("Shell")
+ExteriorMaterial = ExtResource("WallFinish")
+
+[node name="Floor" parent="." instance=ExtResource("Floor")]
+
+[node name="FloorCollision" type="StaticBody3D" parent="."]
+collision_layer = 0
+
+[node name="Bounds" type="CollisionShape3D" parent="FloorCollision"]
+position = Vector3(0, -0.09, 0)
+shape = SubResource("FloorBounds")
+
+[node name="Back0" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-6.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back1" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-5.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back2" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-4.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back3" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-3.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back4" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-2.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back5" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-1.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back6" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(0.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back7" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(1.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back8" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(2.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back9" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(3.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back10" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(4.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back11" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(5.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="Back12" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.0, 0, -5.0)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="FarSide0" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.5, 0, -4.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="FarSide1" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.5, 0, -3.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="FarSide2" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.5, 0, -2.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="FarSide3" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.5, 0, -1.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="FarSide4" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.5, 0, -0.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="FarSide5" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.5, 0, 0.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="FarSide6" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(6.5, 0, 1.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1, 2.25, 1)
+
+[node name="CutawaySide0" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-6.5, 0, -4.5)
+rotation_degrees = Vector3(0, 90, 0)
+scale = Vector3(1, 1.0125, 1)
+
+[node name="CutawaySide1" parent="." instance=ExtResource("Wall") groups=["shop_shell"]]
+position = Vector3(-6.5, 0, -3.5)
+rotation_degrees = Vector3(0, 90, 0)
+scale = Vector3(1, 1.0125, 1)
+
+[node name="Entrance" parent="." instance=ExtResource("Door")]
+position = Vector3(-2, 0, 5.0)
+rotation_degrees = Vector3(0, 0, 0)
+scale = Vector3(1.25, 1.9, 1)
+
+[node name="EntryPoint" type="Marker3D" parent="."]
+position = Vector3(-2, 0.025, 4.26)
+
+[node name="ServicePoint" type="Marker3D" parent="."]
+position = Vector3(2.75, 0, 2.85)
+
+[node name="Checkout" parent="." instance=ExtResource("Counter")]
+position = Vector3(3.0, 0, 3.75)
+rotation_degrees = Vector3(0, 0, 0)
+scale = Vector3(1.5, 1.5, 1.5)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="Checkout"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Checkout/FixtureCollision"]
+position = Vector3(0, 0.285, 0)
+shape = SubResource("CounterBounds")
+
+[node name="ReceivingCart" parent="." instance=ExtResource("Cart")]
+position = Vector3(5.38, 0, 3.92)
+rotation_degrees = Vector3(0, -20, 0)
+scale = Vector3(1.64, 1.64, 1.64)
+
+[node name="FruitIsland" parent="." instance=ExtResource("Fruit")]
+position = Vector3(-4.5, 0, 1.97)
+rotation_degrees = Vector3(0, 15, 0)
+scale = Vector3(2, 2, 2)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="FruitIsland"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="FruitIsland/FixtureCollision"]
+position = Vector3(0, 0.20, 0)
+shape = SubResource("FruitBounds")
+
+[node name="SecondFruitIsland" parent="." instance=ExtResource("FruitLeaf")]
+position = Vector3(-4.54, 0, 0.56)
+rotation_degrees = Vector3(0, -8, 0)
+scale = Vector3(1.94, 1.94, 1.94)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="SecondFruitIsland"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="SecondFruitIsland/FixtureCollision"]
+position = Vector3(0, 0.20, 0)
+shape = SubResource("FruitBounds")
+
+[node name="OrangeDisplay" parent="." instance=ExtResource("FruitAmber")]
+position = Vector3(-4.42, 0, -0.8)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1.8, 1.8, 1.8)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="OrangeDisplay"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="OrangeDisplay/FixtureCollision"]
+position = Vector3(0, 0.20, 0)
+shape = SubResource("FruitBounds")
+
+[node name="WarehouseShelfA" parent="." instance=ExtResource("Boxes")]
+position = Vector3(-0.95, 0, -2.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="WarehouseShelfA"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="WarehouseShelfA/FixtureCollision"]
+position = Vector3(0, 0.43, 0)
+shape = SubResource("BoxesBounds")
+
+[node name="WarehouseShelfB" parent="." instance=ExtResource("Bags")]
+position = Vector3(-0.95, 0, -1)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="WarehouseShelfB"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="WarehouseShelfB/FixtureCollision"]
+position = Vector3(0, 0.44, 0)
+shape = SubResource("BagsBounds")
+
+[node name="WarehouseShelfC" parent="." instance=ExtResource("Boxes")]
+position = Vector3(-0.95, 0, 0.5)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="WarehouseShelfC"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="WarehouseShelfC/FixtureCollision"]
+position = Vector3(0, 0.43, 0)
+shape = SubResource("BoxesBounds")
+
+[node name="WarehouseEnd" parent="." instance=ExtResource("End")]
+position = Vector3(-0.97, 0, 1.59)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1.32, 1.32, 1.32)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="WarehouseEnd"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="WarehouseEnd/FixtureCollision"]
+position = Vector3(0, 0.51, -0.2)
+shape = SubResource("EndBounds")
+
+[node name="WholesaleCansA" parent="." instance=ExtResource("Cans")]
+position = Vector3(3.4, 0, -1.41)
+rotation_degrees = Vector3(0, 0, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="WholesaleCansA"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="WholesaleCansA/FixtureCollision"]
+position = Vector3(0, 0.425, 0)
+shape = SubResource("CansBounds")
+
+[node name="WholesaleCansB" parent="." instance=ExtResource("Cans")]
+position = Vector3(4.99, 0, -1.4)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1.8, 1.8, 1.8)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="WholesaleCansB"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="WholesaleCansB/FixtureCollision"]
+position = Vector3(0, 0.425, 0)
+shape = SubResource("CansBounds")
+
+[node name="BeverageChiller" parent="." instance=ExtResource("Cooler")]
+position = Vector3(4.93, 0, -3.83)
+rotation_degrees = Vector3(0, 0, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="BeverageChiller"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="BeverageChiller/FixtureCollision"]
+position = Vector3(0, 0.44, -0.25)
+shape = SubResource("CoolerBounds")
+
+[node name="DairyChiller" parent="." instance=ExtResource("Cooler")]
+position = Vector3(2.8, 0, -3.83)
+rotation_degrees = Vector3(0, 0, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="DairyChiller"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="DairyChiller/FixtureCollision"]
+position = Vector3(0, 0.44, -0.25)
+shape = SubResource("CoolerBounds")
+
+[node name="ChestFreezer" parent="." instance=ExtResource("Freezer")]
+position = Vector3(0.63, 0, -3.82)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="ChestFreezer"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="ChestFreezer/FixtureCollision"]
+position = Vector3(0, 0.165, 0)
+shape = SubResource("FreezerBounds")
+
+[node name="ChestFreezerExtra" parent="." instance=ExtResource("Freezer")]
+position = Vector3(-1.39, 0, -3.82)
+rotation_degrees = Vector3(0, 180, 0)
+scale = Vector3(1.95, 1.95, 1.95)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="ChestFreezerExtra"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="ChestFreezerExtra/FixtureCollision"]
+position = Vector3(0, 0.165, 0)
+shape = SubResource("FreezerBounds")
+
+[node name="ReceivingStock" parent="." instance=ExtResource("Boxes")]
+position = Vector3(5.45, 0, 0.85)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1.84, 1.84, 1.84)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="ReceivingStock"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="ReceivingStock/FixtureCollision"]
+position = Vector3(0, 0.43, 0)
+shape = SubResource("BoxesBounds")
+
+[node name="ReceivingStockBags" parent="." instance=ExtResource("Bags")]
+position = Vector3(5.45, 0, 2.21)
+rotation_degrees = Vector3(0, -90, 0)
+scale = Vector3(1.84, 1.84, 1.84)
+
+[node name="FixtureCollision" type="StaticBody3D" parent="ReceivingStockBags"]
+collision_layer = 0
+
+[node name="Shape" type="CollisionShape3D" parent="ReceivingStockBags/FixtureCollision"]
+position = Vector3(0, 0.44, 0)
+shape = SubResource("BagsBounds")
+
+[node name="ProduceSign" type="Label3D" parent="."]
+position = Vector3(-4.51, 1.73, 1.44)
+text = "Hortifruti"
+billboard = 1
+font_size = 42
+outline_size = 8
+pixel_size = 0.0075
+modulate = Color(0.96, 0.92, 0.78, 1)
+
+[node name="PantrySign" type="Label3D" parent="."]
+position = Vector3(-0.96, 2.19, -0.93)
+text = "Mercearia"
+billboard = 1
+font_size = 42
+outline_size = 8
+pixel_size = 0.0075
+modulate = Color(0.96, 0.92, 0.78, 1)
+
+[node name="BeverageSign" type="Label3D" parent="."]
+position = Vector3(4.16, 2.18, -1.41)
+text = "Bebidas"
+billboard = 1
+font_size = 42
+outline_size = 8
+pixel_size = 0.0075
+modulate = Color(0.96, 0.92, 0.78, 1)
+
+[node name="ColdSign" type="Label3D" parent="."]
+position = Vector3(2.75, 2.25, -3.85)
+text = "Refrigerados"
+billboard = 1
+font_size = 42
+outline_size = 8
+pixel_size = 0.0075
+modulate = Color(0.96, 0.92, 0.78, 1)
+
+[node name="ReceivingSign" type="Label3D" parent="."]
+position = Vector3(5.45, 2.02, 1.39)
+text = "Estoque"
+billboard = 1
+font_size = 42
+outline_size = 8
+pixel_size = 0.0075
+modulate = Color(0.96, 0.92, 0.78, 1)
+
+[node name="CeilingFill" type="OmniLight3D" parent="."]
+position = Vector3(-1.3, 5.5, 1.5)
+light_color = Color(1, 0.94, 0.83, 1)
+light_energy = 0.8
+shadow_enabled = true
+omni_range = 15.0
+omni_attenuation = 0.72
+
+[node name="ReceivingCarton1" parent="." instance=ExtResource("BulkCarton")]
+position = Vector3(4.46, 0, 3.13)
+rotation_degrees = Vector3(0, 6, 0)
+scale = Vector3(1.23, 1.23, 1.23)
+
+[node name="ReceivingCarton2" parent="." instance=ExtResource("BulkCarton")]
+position = Vector3(5.47, 0, 3.04)
+rotation_degrees = Vector3(0, -7, 0)
+scale = Vector3(1.05, 1.05, 1.05)
+
+[node name="ReceivingCarton3" parent="." instance=ExtResource("BulkCarton")]
+position = Vector3(4.46, 0.88, 3.13)
+rotation_degrees = Vector3(0, -8, 0)
+scale = Vector3(0.82, 0.82, 0.82)
+
+[node name="Nando" parent="." instance=ExtResource("Shopkeeper")]
+position = Vector3(3.05, 0.02, 4.5)
+rotation_degrees = Vector3(0, 160, 0)

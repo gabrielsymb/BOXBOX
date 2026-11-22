@@ -1,3 +1,4 @@
+using Boxbox.Presentation.Hud;
 using Godot;
 
 namespace Boxbox.Presentation.OpenWorld;
@@ -8,6 +9,9 @@ public sealed partial class OpenWorldPrototype : Node3D
 
     private PlayerController? _player;
     private Camera3D? _camera;
+    private Camera3D _drivingCamera = null!;
+    private Camera3D _interiorCamera = null!;
+    private DriveableCar _pickup = null!;
     private float _targetCameraSize = 12.5f;
 
     public override void _Ready()
@@ -20,19 +24,20 @@ public sealed partial class OpenWorldPrototype : Node3D
 
         _player = new PlayerController
         {
-            Position = new Vector3(0, 0.35f, -2f)
+            Position = StartingStreet.PlayerStart
         };
         AddChild(_player);
 
-        var car = new DriveableCar
+        _pickup = new DriveableCar
         {
-            Position = new Vector3(5.1f, 0.35f, 10f),
-            Rotation = Vector3.Zero
+            Position = StartingStreet.PickupParking,
+            Rotation = new Vector3(0, -Mathf.Pi / 2, 0)
         };
-        AddChild(car);
+        AddChild(_pickup);
 
         var world = new OpenWorldStreamer { Player = _player };
         AddChild(world);
+        var stores = StartingStreet.PlaceStores(this);
 
         AddChild(new TrafficSpawner { Focus = _player, World = world });
         AddChild(new PedestrianSpawner { Focus = _player });
@@ -48,6 +53,44 @@ public sealed partial class OpenWorldPrototype : Node3D
         };
         AddChild(_camera);
         _camera.LookAt(_player.FocusPosition + Vector3.Up * 0.5f);
+        _camera.MakeCurrent();
+        _drivingCamera = new Camera3D
+        {
+            Name = "PickupCamera",
+            Projection = Camera3D.ProjectionType.Perspective,
+            Fov = 60f,
+            Near = 0.12f,
+            Far = 95f
+        };
+        AddChild(_drivingCamera);
+        _interiorCamera = new Camera3D
+        {
+            Name = "StoreInteriorCamera",
+            Projection = Camera3D.ProjectionType.Orthogonal,
+            CullMask = InteriorRenderLayer.Mask,
+            Environment = new Godot.Environment
+            {
+                BackgroundMode = Godot.Environment.BGMode.Color,
+                BackgroundColor = Colors.Black,
+                AmbientLightSource = Godot.Environment.AmbientSource.Color,
+                AmbientLightColor = new Color(0.93f, 0.90f, 0.86f),
+                AmbientLightEnergy = 0.53f
+            }
+        };
+        AddChild(_interiorCamera);
+
+        var minimap = GD.Load<PackedScene>("res://Presentation/Hud/StreetMinimap.tscn").Instantiate<StreetMinimap>();
+        minimap.Player = _player;
+        AddChild(minimap);
+        AddChild(new StreetSupplyInteraction
+        {
+            Name = "SupplyRun",
+            Player = _player,
+            Pickup = _pickup,
+            Minimap = minimap,
+            Grocery = stores.Grocery,
+            Supplier = stores.Supplier
+        });
     }
 
     public override void _PhysicsProcess(double delta)
@@ -57,16 +100,59 @@ public sealed partial class OpenWorldPrototype : Node3D
             return;
         }
 
+        if (_pickup.HasDriver)
+        {
+            UpdateDrivingCamera((float)delta);
+            return;
+        }
+
+        if (_player.Interior is { } store)
+        {
+            var target = store.InteriorFocus;
+            _interiorCamera.Size = store.InteriorCameraSize;
+            _interiorCamera.GlobalPosition = target + new Vector3(5.5f, 12f, -7f);
+            _interiorCamera.LookAt(target);
+            _interiorCamera.MakeCurrent();
+            return;
+        }
+
+        if (!_camera.Current)
+        {
+            _camera.MakeCurrent();
+        }
         var focus = _player.FocusPosition;
         _camera.Size = Mathf.Lerp(_camera.Size, _targetCameraSize,
             1f - Mathf.Exp(-10f * (float)delta));
         _camera.GlobalPosition = focus + CameraOffset;
-        _camera.LookAt(focus + Vector3.Up * 0.55f);
+        _camera.LookAt(focus + Vector3.Up * 0.78f);
+    }
+
+    private void UpdateDrivingCamera(float delta)
+    {
+        var forward = -_pickup.GlobalBasis.Z.Normalized();
+        var focus = _pickup.GlobalPosition + Vector3.Up * 1.2f;
+        var desired = focus - forward * 4.6f + Vector3.Up * 1.55f;
+        var candidate = _drivingCamera.Current
+            ? _drivingCamera.GlobalPosition.Lerp(desired, 1f - Mathf.Exp(-7f * delta))
+            : desired;
+
+        var query = PhysicsRayQueryParameters3D.Create(focus, candidate);
+        query.Exclude = new Godot.Collections.Array<Rid> { _pickup.GetRid() };
+        var obstruction = GetWorld3D().DirectSpaceState.IntersectRay(query);
+        if (obstruction.TryGetValue("position", out var hit))
+        {
+            var offset = hit.AsVector3() - focus;
+            candidate = focus + offset.Normalized() * Mathf.Max(0.12f, offset.Length() - 0.23f);
+        }
+        _drivingCamera.GlobalPosition = candidate;
+        var aim = focus + forward * 2.6f - Vector3.Up * 0.46f;
+        _drivingCamera.LookAt(aim);
+        _drivingCamera.MakeCurrent();
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is not InputEventMouseButton { Pressed: true } mouse) return;
+        if (_pickup.HasDriver || _player?.Interior is not null || @event is not InputEventMouseButton { Pressed: true } mouse) return;
         var delta = mouse.ButtonIndex switch
         {
             MouseButton.WheelUp => -1.25f,
@@ -139,8 +225,10 @@ public sealed partial class OpenWorldPrototype : Node3D
         EnsureKey("move_right", Key.D);
         EnsureKey("sprint", Key.Shift);
         EnsureKey("interact", Key.E);
+        EnsureKey("shop_interact", Key.F);
         EnsureKey("equip_weapon", Key.Q);
         EnsureKey("fire", Key.Space);
+        EnsureKey("pickup_brake", Key.Space);
 
         if (!InputMap.ActionGetEvents("fire").OfType<InputEventMouseButton>()
             .Any(item => item.ButtonIndex == MouseButton.Left))

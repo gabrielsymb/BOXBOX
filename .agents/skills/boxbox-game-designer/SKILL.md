@@ -13,7 +13,7 @@ Ajude a transformar o BOXBOX em um jogo de gestão divertido, legível, leve e i
 - Preserve a identidade de **systemic game design**, **emergent gameplay** e **persistent world simulation**: componha regras e agentes reutilizáveis, deixe histórias surgirem de interações auditáveis e nunca faça o mundo depender da presença do protagonista para avançar.
 - O nome do jogo é **BOXBOX**.
 - Trate BOXBOX como nome confirmado do projeto, mas não como marca comercial já liberada: existe um jogo homônimo na Steam. Preserve o nome nas entregas e sinalize a necessidade de validação comercial ou subtítulo antes de página pública, registro ou investimento pesado em identidade.
-- Os três segmentos iniciais são mercearia, cosméticos e adega. Cada um precisa mudar as decisões e os riscos, não apenas os nomes e as artes dos produtos.
+- O único segmento jogável é a mercearia de conveniência, com alimentos, bebidas e itens de conveniência. As categorias devem criar decisões de estoque, preço e reposição próprias.
 - A progressão vai de operador a gestor: no início, o jogador faz quase tudo; depois, contrata, delega e decide em nível estratégico.
 - O comércio deve produzir histórias emergentes por meio de demanda, horário, sazonalidade, preço, estoque, filas, reputação, crédito e eventos.
 - Clientes escolhem entre BOXBOX, concorrentes admissíveis e a opção de não comprar; concorrentes são inicialmente agregados, nomeados e sujeitos às mesmas categorias causais em resolução menor.
@@ -67,7 +67,7 @@ Leia [references/architecture.md](references/architecture.md) antes de propor ar
 - Modelos podem propor ofertas de crédito ou seguro, mas um validador determinístico de contratos aceita ou rejeita campos, faixas, cronologia e cláusulas antes de criar qualquer contrato imutável.
 - Parametrize catálogos, pesos, curvas, sazonalidade e balanceamento em dados versionados.
 
-Leia [references/simulation-and-economy.md](references/simulation-and-economy.md) ao trabalhar em demanda, NPCs, TinyML, balanceamento, estoque, caixa, impostos, crédito, contratações, indicadores ou identidade dos segmentos.
+Leia [references/simulation-and-economy.md](references/simulation-and-economy.md) ao trabalhar em demanda, NPCs, TinyML, balanceamento, estoque, caixa, impostos, crédito, contratações, indicadores ou categorias da mercearia.
 
 ## Dispute mercado sem criar rivais oniscientes
 
@@ -139,7 +139,7 @@ Leia [references/security-and-losses.md](references/security-and-losses.md) ante
 1. Identifique a decisão ou o artefato solicitado e o nível atual de maturidade. Não tente especificar o jogo inteiro quando uma fatia menor resolve o pedido.
 2. Separe claramente decisões confirmadas, hipóteses recomendadas e pontos ainda abertos. Não apresente uma sugestão sua como decisão do usuário.
 3. Compare alternativas pelos efeitos sobre diversão, legibilidade, custo de produção, desempenho, testabilidade e expansão futura.
-4. Prefira a menor fatia jogável que teste a dúvida real. Para o primeiro vertical slice, use um segmento, poucos produtos, um fornecedor, um ciclo diário, clientes, estoque e caixa, salvo orientação diferente do usuário.
+4. Prefira a menor fatia jogável que teste a dúvida real. Para o primeiro vertical slice, use uma mercearia, poucos produtos, um fornecedor, um ciclo diário, clientes, estoque e caixa, salvo orientação diferente do usuário.
 5. Ao propor um sistema, descreva entradas, estado, ações, pré-condições, saídas, eventos, invariantes, falhas, recuperação limitada, configuração e critérios de aceitação. Inclua como o jogador percebe causa e consequência.
 6. Ao escrever código, mantenha o núcleo independente de framework, use dinheiro em centavos inteiros ou decimal exato, injete tempo e aleatoriedade e cubra as invariantes com testes.
 7. Termine com o próximo passo de maior aprendizado e sinalize somente as perguntas que realmente bloqueiam esse passo.

@@ -44,8 +44,8 @@ public sealed partial class BoxboxDayNightCycle : Node3D
         SunLight.DirectionalShadowMaxDistance = 45f;
         SunLight.DirectionalShadowFadeStart = 0.9f;
         SunLight.DirectionalShadowPancakeSize = 8f;
-        SunLight.ShadowBias = 0.03f;
-        SunLight.ShadowNormalBias = 0.5f;
+        SunLight.ShadowBias = 0.12f;
+        SunLight.ShadowNormalBias = 0.85f;
         SunLight.ShadowBlur = 0f;
         SunLight.LightAngularDistance = 0f;
         RenderingServer.DirectionalShadowAtlasSetSize(4096, true);

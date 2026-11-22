@@ -13,5 +13,6 @@ internal enum MarketOfferPassabilityReason
     NoMatchingOffer,
     OfferInactive,
     InsufficientAvailability,
-    MissingPermittedObservation
+    MissingPermittedObservation,
+    ExceedsSpendingLimit
 }

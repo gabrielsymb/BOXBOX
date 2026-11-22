@@ -29,7 +29,7 @@ public sealed class WorldAssetCatalog
     private const string LotPropsRoot = AssetsRoot + "World/Props/";
     private const string StreetFurnitureRoot = AssetsRoot + "World/Roads/StreetFurniture/";
     private const string RoadModulesRoot = AssetsRoot + "World/Roads/";
-    private const string NpcCharactersRoot = AssetsRoot + "Characters/NPCs/";
+    private const string NpcCharactersRoot = AssetsRoot + "Characters/NewCast/Pedestrians/";
 
     private static readonly Lazy<WorldAssetCatalog> LazyCurrent = new(() => new WorldAssetCatalog());
     private readonly IReadOnlyDictionary<WorldAssetCategory, IReadOnlyList<string>> _paths;
@@ -41,7 +41,10 @@ public sealed class WorldAssetCatalog
     {
         _paths = new Dictionary<WorldAssetCategory, IReadOnlyList<string>>
         {
-            [WorldAssetCategory.CommercialBuildings] = DiscoverScenes(CommercialBuildingsRoot),
+            [WorldAssetCategory.CommercialBuildings] = DiscoverScenes(CommercialBuildingsRoot)
+                .Where(path => !path.EndsWith("/corner-shop-market.glb", StringComparison.Ordinal) &&
+                               !path.EndsWith("/corner-shop-awning.glb", StringComparison.Ordinal))
+                .ToArray(),
             [WorldAssetCategory.ResidentialBuildings] = DiscoverScenes(ResidentialBuildingsRoot),
             [WorldAssetCategory.Nature] = DiscoverScenes(NatureRoot),
             [WorldAssetCategory.Vehicles] = DiscoverScenes(VehiclesRoot),
@@ -50,7 +53,10 @@ public sealed class WorldAssetCatalog
             [WorldAssetCategory.RoadModules] = DiscoverScenes(RoadModulesRoot, recursive: false)
             , [WorldAssetCategory.NpcCharacters] = DiscoverScenes(NpcCharactersRoot)
         };
-        AllPaths = DiscoverScenes(AssetsRoot);
+        AllPaths = DiscoverScenes(AssetsRoot)
+            .Where(path => !path.StartsWith(AssetsRoot + "Characters/NPCs/", StringComparison.Ordinal) &&
+                           path != AssetsRoot + "Characters/boxbox-protagonist.glb")
+            .ToArray();
 
         foreach (var (category, paths) in _paths)
         {

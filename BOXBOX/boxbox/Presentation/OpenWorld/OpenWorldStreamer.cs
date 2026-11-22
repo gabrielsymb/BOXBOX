@@ -9,6 +9,8 @@ public sealed partial class OpenWorldStreamer : Node3D
     // Covers a complete nearby block so its buildings and props do not vanish into bare LOD tiles.
     private const int DetailRadius = 6;
     private const int CellsPerFrame = 3;
+    private const int DrivingLookAheadCells = 5;
+    private const int DrivingLookAheadRadius = 4;
     private const float LotSurfaceY = 0.15f;
     private const float BuildingFootprint = 3.15f;
     private readonly Dictionary<Vector2I, LoadedCell> _loaded = [];
@@ -16,6 +18,7 @@ public sealed partial class OpenWorldStreamer : Node3D
     private readonly List<PendingCell> _pending = [];
     private readonly HashSet<Vector2I> _required = [];
     private Vector2I _lastCenter = new(int.MaxValue, int.MaxValue);
+    private Vector2I _lastDrivingOffset;
     public PlayerController? Player { get; set; }
 
     public bool IsCellLoaded(Vector3 position)
@@ -44,25 +47,34 @@ public sealed partial class OpenWorldStreamer : Node3D
         if (!ThreadedSceneCache.IsReady) return;
         var focus = Player.FocusPosition;
         var center = new Vector2I(Mathf.FloorToInt(focus.X / CellSize), Mathf.FloorToInt(focus.Z / CellSize));
-        if (center != _lastCenter)
+        var heading = Player.FocusHeading;
+        var drivingOffset = Player.IsDriving
+            ? new Vector2I(Mathf.RoundToInt(heading.X * DrivingLookAheadCells),
+                Mathf.RoundToInt(heading.Z * DrivingLookAheadCells))
+            : Vector2I.Zero;
+        if (center != _lastCenter || drivingOffset != _lastDrivingOffset)
         {
             _lastCenter = center;
-            Refresh(center);
+            _lastDrivingOffset = drivingOffset;
+            Refresh(center, drivingOffset);
         }
         BuildPendingCells();
     }
 
-    private void Refresh(Vector2I center)
+    private void Refresh(Vector2I center, Vector2I drivingOffset)
     {
         _required.Clear();
-        for (var x = center.X - LoadRadius; x <= center.X + LoadRadius; x++)
-        for (var z = center.Y - LoadRadius; z <= center.Y + LoadRadius; z++)
+        var scanRadius = drivingOffset == Vector2I.Zero ? LoadRadius : DrivingLookAheadCells + DrivingLookAheadRadius;
+        for (var x = center.X - scanRadius; x <= center.X + scanRadius; x++)
+        for (var z = center.Y - scanRadius; z <= center.Y + scanRadius; z++)
         {
             var offset = new Vector2I(x - center.X, z - center.Y);
             var distanceSquared = offset.LengthSquared();
-            if (distanceSquared > LoadRadius * LoadRadius) continue;
+            var ahead = drivingOffset != Vector2I.Zero &&
+                (offset - drivingOffset).LengthSquared() <= DrivingLookAheadRadius * DrivingLookAheadRadius;
+            if (!ahead && distanceSquared > LoadRadius * LoadRadius) continue;
             var coordinate = new Vector2I(x, z);
-            var detailed = distanceSquared <= DetailRadius * DetailRadius;
+            var detailed = ahead || distanceSquared <= DetailRadius * DetailRadius;
             _required.Add(coordinate);
             if (_loaded.TryGetValue(coordinate, out var loaded) && loaded.Detailed == detailed) continue;
             QueueCell(coordinate, detailed, distanceSquared);
@@ -135,6 +147,8 @@ public sealed partial class OpenWorldStreamer : Node3D
             return cell;
         }
 
+        if (StartingStreet.IsAuthoredShopBlock(coordinate)) return cell;
+
         if (plan.IsRamp)
         {
             // Access cells now use the same low, continuous sidewalk as every lot.
@@ -150,7 +164,7 @@ public sealed partial class OpenWorldStreamer : Node3D
         // Keep walkable geometry solid across every loaded LOD. Detail controls only
         // buildings and decoration; it must never change traversal safety.
         cell.AddChild(CreateLowLotCollider());
-        if (!detailed) return cell;
+        if (!detailed || StartingStreet.ReservesSupplierLot(coordinate)) return cell;
 
         if (plan.HasBuilding)
         {
@@ -182,9 +196,9 @@ public sealed partial class OpenWorldStreamer : Node3D
         if (verticalRoad && !horizontalRoad && localX != 0) return;
         if (horizontalRoad && !verticalRoad && localZ != 0) return;
 
-        var roadPath = Asset(WorldAssetCategory.RoadModules, plan.IsIntersection
-            ? "road-crossroad"
-            : plan.IsCrosswalk ? "road-crossing" : "road-straight");
+        var roadModule = plan.IsIntersection ? "road-crossroad"
+            : plan.IsCrosswalk ? "road-crossing" : "road-straight";
+        var roadPath = $"res://Assets/World/Roads/TexturedCurb/{roadModule}.glb";
         var roadPosition = plan.IsIntersection
             ? new Vector3(2, 0, 2)
             : verticalRoad ? new Vector3(2, 0, 0) : new Vector3(0, 0, 2);
@@ -194,6 +208,7 @@ public sealed partial class OpenWorldStreamer : Node3D
             roadPath, plan.IsIntersection ? "WideIntersection" : "WideRoad", roadPosition, roadScale);
         if (!plan.IsIntersection && verticalRoad) road.RotateY(Mathf.Pi / 2f);
         cell.AddChild(road);
+        RoadSurfaceCollision.AddTo(cell, roadPosition, plan.IsIntersection, verticalRoad);
         // Controllers are owned by the streamer and survive any visual LOD
         // replacement. Only the road signs/meshes belong to this streamed cell.
         if (!plan.IsIntersection || !detailed || intersection is null) return;

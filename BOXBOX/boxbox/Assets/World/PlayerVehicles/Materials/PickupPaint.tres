@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://Assets/World/PlayerVehicles/Materials/PickupWeathering.gdshader" id="shader"]
+[ext_resource type="Texture2D" path="res://Assets/World/PlayerVehicles/Materials/metal-grain.jpg" id="color"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/green_metal_rust/green_metal_rust_nor_gl_1k.jpg" id="normal"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/green_metal_rust/green_metal_rust_rough_1k.jpg" id="rough"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/park_dirt/park_dirt_diff_1k.jpg" id="dust"]
+
+[resource]
+resource_name = "PickupPaint"
+shader = ExtResource("shader")
+shader_parameter/paint_color = Vector3(0.85, 0.62, 0.31)
+shader_parameter/cargo_wear = 0.0
+shader_parameter/paint_grain = ExtResource("color")
+shader_parameter/metal_normal = ExtResource("normal")
+shader_parameter/metal_roughness = ExtResource("rough")
+shader_parameter/dust_grain = ExtResource("dust")

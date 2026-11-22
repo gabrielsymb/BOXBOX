@@ -1,0 +1,19 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/bark_platanus/bark_platanus_diff_1k.jpg" id="diff"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/bark_platanus/bark_platanus_nor_gl_1k.jpg" id="normal"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/bark_platanus/bark_platanus_rough_1k.jpg" id="rough"]
+[ext_resource type="Texture2D" path="res://Assets/World/Materials/PolyHaven/bark_platanus/bark_platanus_disp_1k.png" id="height"]
+
+[resource]
+resource_name = "CascaDeArvore"
+albedo_color = Color(1.32, 1.22, 1.09, 1)
+albedo_texture = ExtResource("diff")
+normal_enabled = true
+normal_scale = 0.85
+normal_texture = ExtResource("normal")
+roughness_texture = ExtResource("rough")
+heightmap_enabled = true
+heightmap_scale = 1.15
+heightmap_texture = ExtResource("height")
+texture_filter = 4

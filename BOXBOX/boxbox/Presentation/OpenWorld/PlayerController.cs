@@ -9,6 +9,7 @@ public sealed partial class PlayerController : CharacterBody3D
     private const float WalkSpeed = 3.2f;
     private const float SprintSpeed = 5.2f;
     private const float Gravity = 18f;
+    private const float CurbStepHeight = 0.19f;
     private const float FireIntervalSeconds = 0.22f;
 
     private CollisionShape3D? _collision;
@@ -24,8 +25,23 @@ public sealed partial class PlayerController : CharacterBody3D
     private Vector3 _aimPoint;
     private bool _hasAimPoint;
 
-    public Vector3 FocusPosition => _vehicle?.GlobalPosition ?? GlobalPosition;
+    public Vector3 FocusPosition => _vehicle?.GlobalPosition ?? Interior?.Door ?? GlobalPosition;
+    public Vector3 FocusHeading => _vehicle is { } vehicle ? -vehicle.GlobalBasis.Z : GlobalBasis.Z;
+    public bool IsDriving => _vehicle is not null;
+    public bool ShopMenuOpen { get; set; }
     public bool IsArmed => _armed;
+    internal StreetStore? Interior { get; private set; }
+
+    internal void SetInterior(StreetStore? store)
+    {
+        Interior = store;
+        if (store is null) return;
+        _armed = false;
+        _hasAimPoint = false;
+        _shotPoseRemaining = 0;
+        if (_weapon is not null) _weapon.Hide();
+        if (_aimMarker is not null) _aimMarker.Hide();
+    }
 
     public override void _Ready()
     {
@@ -47,11 +63,12 @@ public sealed partial class PlayerController : CharacterBody3D
 
         var scene = GD.Load<PackedScene>("res://Assets/Characters/NewCast/boxbox-player-fiel.glb");
         _model = scene.Instantiate<Node3D>();
-        _model.Name = "ApprovedProtagonistVisual";
+        _model.Name = "ProtagonistVisual";
         _model.RotateY(-Mathf.Pi / 2f);
         VisualShadowSupport.NormalizeHeight(_model, PlayerHeight);
         VisualShadowSupport.AlignLowestPointToGround(_model, 0.02f);
         AddChild(_model);
+        InteriorRenderLayer.Include(_model);
         VisualShadowSupport.SetCastShadows(_model);
         _contactShadow = VisualShadowSupport.CreateContactShadow("PlayerContactShadow", new Vector2(0.72f, 0.52f));
         AddChild(_contactShadow);
@@ -110,12 +127,19 @@ public sealed partial class PlayerController : CharacterBody3D
             return;
         }
 
-        if (Input.IsActionJustPressed("interact"))
+        if (ShopMenuOpen)
+        {
+            Velocity = new Vector3(0, IsOnFloor() ? 0 : Velocity.Y - Gravity * (float)delta, 0);
+            MoveAndSlide();
+            return;
+        }
+
+        if (Interior is null && Input.IsActionJustPressed("interact"))
         {
             TryEnterNearestVehicle();
         }
 
-        if (Input.IsActionJustPressed("equip_weapon"))
+        if (Interior is null && Input.IsActionJustPressed("equip_weapon"))
         {
             _armed = !_armed;
             if (_weapon is not null)
@@ -127,7 +151,7 @@ public sealed partial class PlayerController : CharacterBody3D
 
         _hasAimPoint = _armed && UpdateAimPoint();
 
-        if (_armed && _hasAimPoint && Input.IsActionPressed("fire") && _fireCooldown <= 0)
+        if (Interior is null && _armed && _hasAimPoint && Input.IsActionPressed("fire") && _fireCooldown <= 0)
         {
             Fire();
         }
@@ -160,7 +184,41 @@ public sealed partial class PlayerController : CharacterBody3D
             PlayAnimation(_armed ? "holding-both" : "idle");
         }
 
+        if (Interior is { } store)
+        {
+            var step = (float)delta;
+            var target = store.ClampInteriorPosition(GlobalPosition + Velocity * step);
+            Velocity = (target - GlobalPosition) / step;
+        }
+        else
+        {
+            TryStepUp(direction * speed * (float)delta);
+        }
         MoveAndSlide();
+    }
+
+    private void TryStepUp(Vector3 travel)
+    {
+        if (!IsOnFloor() || travel.LengthSquared() < 0.00001f)
+        {
+            return;
+        }
+
+        var wall = new KinematicCollision3D();
+        if (!TestMove(GlobalTransform, travel, wall) ||
+            Mathf.Abs(wall.GetNormal().Y) >= 0.95f ||
+            wall.GetCollider() is not StaticBody3D { Name: var obstacle } ||
+            (obstacle != "ExactLowLotCollision" && obstacle != RoadSurfaceCollision.CurbName &&
+             obstacle != RoadSurfaceCollision.AsphaltName))
+        {
+            return;
+        }
+
+        var lift = Vector3.Up * CurbStepHeight;
+        if (!TestMove(GlobalTransform, lift) && !TestMove(GlobalTransform.Translated(lift), travel))
+        {
+            GlobalPosition += lift;
+        }
     }
 
     private void Fire()
