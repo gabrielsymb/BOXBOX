@@ -1,2 +1,3 @@
 - Protagonista: modelo e pacote de locomoção fornecidos pelo criador de BOXBOX por meio do [Manus](https://manus.im/share/file/33c72025-bcdc-478e-8dcf-179abdbeeed8). A malha de execução foi simplificada no Blender com UVs e rig preservados.
 - The separate held prop is from [Kenney Mini Characters](https://kenney.nl/assets/mini-characters), CC0.
+- Detalhe de tecido derivado dos mapas de altura [Cotton Jersey](https://polyhaven.com/a/cotton_jersey) e [Denim Fabric](https://polyhaven.com/a/denim_fabric) da Poly Haven, CC0. Composição aplicada ao atlas de cor da regata e da calça.

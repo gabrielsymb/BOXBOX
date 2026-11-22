@@ -10,9 +10,9 @@ Em 2026-11-19, a composição `BOXBOX/asset-library/reports/boxbox-first-block-c
 
 A personagem presente nessa composição permanece provisória. A aprovação da direção não decide o protagonista.
 
-A prancha civil do Mini Characters permanece adequada como fonte de NPCs, mas nenhuma aparência está aprovada como protagonista. Em 2026-11-19, o usuário confirmou que o personagem principal precisa pegar e disparar armas e autorizou editar os assets no Blender. A inspeção verificou que todas as variantes civis compartilham o rig compacto e já incluem `holding-both-shoot`, `holding-left-shoot` e `holding-right-shoot`, além de `pick-up`. O rig não possui ossos de mão; a prova `BOXBOX/asset-library/reports/boxbox-weapon-compatibility.blend` adiciona um socket de empunhadura sem alterar os GLBs originais.
+A prancha civil do Mini Characters permanece adequada como fonte de NPCs, mas nenhuma aparência está aprovada como protagonista. Em 2026-11-19, o usuário confirmou que o personagem principal precisa pegar e disparar armas e autorizou editar os assets no Blender. A inspeção verificou que todas as variantes civis compartilham o rig compacto e já incluem `holding-both-shoot`, `holding-left-shoot` e `holding-right-shoot`, além de `pick-up`. A inspeção histórica corresponde ao protótipo da Kenney.
 
-O protagonista canônico é homem branco, de cabelo loiro, rosto sem barba e regata vermelho-alaranjada. A versão aprovada pelo usuário em 2026-11-19 está em `BOXBOX/asset-library/reports/boxbox-protagonist-v1.blend`. Ela deriva de `character-male-b`, remove a barba que ocultava a roupa, converte os braços em pele aparente e preserva o armature, os pesos, as animações e o socket de arma. Integrações e refinamentos devem preservar essa identidade, salvo nova decisão explícita do usuário.
+O protagonista canônico é o modelo do Manus, de cabelo loiro, óculos escuros e regata cinza, em `BOXBOX/boxbox/Assets/Characters/NewCast/boxbox-player-fiel.glb`. O projeto de revisão da bandoleira está em `BOXBOX/asset-library/reports/protagonista-manus/BOXBOX-bandoleira-repouso-tecidos.blend`. Preserve a identidade, o esqueleto, os materiais e os clipes de locomoção do modelo.
 
 ## Decisões confirmadas
 
