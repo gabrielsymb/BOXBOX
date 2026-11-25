@@ -1,4 +1,0 @@
-- `city-pack-tree.glb` and `city-pack-washing-line.glb` are Tree and Washing Line from City Pack by J-Toastie via Poly Pizza, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Source meshes are unchanged and scaled and placed in the Godot scene. See [the project's asset provenance](../../../../../docs/grocery-slice-and-assets.md).
-- The pavement meshes are original BOXBOX geometry. The [Poly Haven material credits](../Materials/PolyHaven/LICENSE.md) cover their photographic textures.
-- The four textured building variants derive from the Kenney City Kit suburban and commercial models curated in BOXBOX (CC0). Their meshes use revised material slots and UVs for the same Poly Haven material library. The grocery awning was moved to face the street.
-- `arvore-casca.glb` is the same J-Toastie City Pack tree with new trunk UVs and a photographic bark material. The canopy uses the source palette.

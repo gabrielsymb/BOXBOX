@@ -1,4 +1,0 @@
-- Protagonista: modelo e pacote de locomoção fornecidos pelo criador de BOXBOX por meio do [Manus](https://manus.im/share/file/33c72025-bcdc-478e-8dcf-179abdbeeed8). A malha de execução foi simplificada no Blender com UVs e rig preservados.
-- [Commuter](https://polyfork.dev/asset/commuter-381e7f), [Shopkeeper](https://polyfork.dev/asset/shopkeeper-be5547) and [Surveyor](https://polyfork.dev/asset/surveyor-82e5c7) by Polyfork, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). BOXBOX adjusted accessories on the Commuter and Surveyor.
-- The separate held prop is from [Kenney Mini Characters](https://kenney.nl/assets/mini-characters), CC0.
-- Detalhe de tecido derivado dos mapas de altura [Cotton Jersey](https://polyhaven.com/a/cotton_jersey) e [Denim Fabric](https://polyhaven.com/a/denim_fabric) da Poly Haven, CC0. Composição aplicada ao atlas de cor da regata e da calça.
