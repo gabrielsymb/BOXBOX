@@ -6,9 +6,7 @@ Leia também `../AGENTS.md` e `README.md` antes de implementar.
 ## Localização e independência
 
 - Todo código, projeto de engine, cena, conteúdo e asset novo do jogo fica dentro de
-  `game/`. Não crie implementação do produto em `BOXBOX/`, `research/` ou na raiz.
-- `game/` é um projeto novo. Não copie código, cenas, saves ou assets do protótipo
-  anterior nem de `BOXBOX/reboot/`.
+  `game/`. Não crie implementação do produto em `research/` ou na raiz.
 - Os repositórios de `research/third-party/` podem ser estudados e portados diretamente
   quando a licença permitir (ex.: REDRIVER2, MIT). Ao portar, mantenha o aviso de
   copyright/licença no topo do arquivo, cite a função/arquivo de origem e registre o estudo

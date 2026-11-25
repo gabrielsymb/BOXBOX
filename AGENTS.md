@@ -30,7 +30,7 @@ arquitetura ou procedimento de execução para `game/`.
 - Plataforma-alvo inicial: PC.
 - O jogador começa em uma mercearia de conveniência, o único segmento jogável. O mix inclui alimentos, bebidas e itens de conveniência.
 - O abastecimento inicial acontece no mundo aberto. O jogador faz o pedido, vai fisicamente ao atacado na caminhonete, carrega a mercadoria e retorna à mercearia para descarregar. A navegação usa destino e rota compartilhados entre minimapa e mapa geral. A [missão de abastecimento](docs/grocery-supply-run.md) registra o fluxo.
-- Decisão explícita mais recente do usuário: Unity é a engine do jogo novo em `game/`; Godot foi abandonada. O Unity reboot em `BOXBOX/reboot/` é uma referência técnica de configuração, não o destino do produto.
+- Decisão explícita mais recente do usuário: Unity é a engine do jogo novo em `game/`; Godot foi abandonada.
 - O jogo novo usa C# na Unity. A versão inicial alvo é Unity 6.3 LTS (`6000.3.29f1`), conforme o editor já registrado no workspace; reavaliar apenas diante de incompatibilidade concreta.
 - A implementação começa pelos motores de IA/comportamento. Eles serão módulos plugáveis no mesmo processo, isolados por contratos; processos separados ficam como opção futura se houver necessidade concreta.
 - Steam é a candidata principal conhecida, não uma decisão exclusiva.

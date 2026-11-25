@@ -1,9 +1,8 @@
 # BOXBOX — jogo novo
 
 Este diretório é a raiz do projeto novo do BOXBOX. Código de produto, cenas, conteúdo
-e assets novos ficam aqui. O protótipo antigo em `../BOXBOX/` e o experimento em
-`../BOXBOX/reboot/` são referências de pesquisa, não dependências nem destinos para
-novas funcionalidades.
+e assets novos ficam aqui. O protótipo antigo em Godot foi removido em 2026-11-24
+(continua no histórico do git, commit `7f931e8`).
 
 ## Stack
 
