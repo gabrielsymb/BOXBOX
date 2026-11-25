@@ -1,4 +1,5 @@
 using BoxBox.Presentation.Supply;
+using BoxBox.Presentation.Traffic;
 using BoxBox.Presentation.World;
 using UnityEngine;
 
@@ -25,6 +26,7 @@ namespace BoxBox.Presentation.Vehicles
             SetupCamera();
             SetupTestCourse(_town.TestYardCentre);
             SetupSupplyRun();
+            gameObject.AddComponent<TrafficManager>().Init(_town.Town.Network, _vehicle.transform, count: 14, seed: 2026);
         }
 
         // Grocery at the spawn point, wholesaler across the avenues: the first playable supply run.
@@ -62,70 +64,9 @@ namespace BoxBox.Presentation.Vehicles
         private void SetupVehicle()
         {
             if (vehicleSpec == null) vehicleSpec = ScriptableObject.CreateInstance<VehicleSpec>();
-            VehicleSpec spec = vehicleSpec;
-            var vehicleObj = new GameObject(spec.bedLength > 0f ? "Pickup_Physics" : "Car_Physics");
-            vehicleObj.transform.position = new Vector3(0f, 0.5f, 0f);
-
-            var rb = vehicleObj.AddComponent<Rigidbody>();
-            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            rb.interpolation = RigidbodyInterpolation.Interpolate;
-
-            // Origin = ground level at rest (Driver places wheel contact points there).
-            Bounds? bed = VehicleBodyBuilder.Build(vehicleObj.transform, spec);
-            if (bed.HasValue)
-            {
-                _cargo = vehicleObj.AddComponent<CargoBed>();
-                _cargo.SetBedVolume(bed.Value);
-            }
-
-            // Wheels setup
-            var controller = vehicleObj.AddComponent<VehiclePhysicsController>();
-            controller.SetSpec(spec);
-            SetupWheels(controller, vehicleObj.transform, spec);
-
-            vehicleObj.AddComponent<VehicleInputAdapter>();
-            _vehicle = controller;
-        }
-
-        private void SetupWheels(VehiclePhysicsController controller, Transform root, VehicleSpec spec)
-        {
-            float x = spec.track / 2f, z = spec.wheelbase / 2f;
-            // Tyre contact points (Driver wheelDisp): the -90 degree point of each wheel at rest.
-            Vector3[] wheelOffsets = new[]
-            {
-                new Vector3(-x, 0f, z),  // Front-Left
-                new Vector3(x, 0f, z),   // Front-Right
-                new Vector3(-x, 0f, -z), // Rear-Left
-                new Vector3(x, 0f, -z)   // Rear-Right
-            };
-
-            var wheels = new VehiclePhysicsController.Wheel[4];
-            string[] names = { "FL", "FR", "RL", "RR" };
-
-            for (int i = 0; i < 4; i++)
-            {
-                var mount = new GameObject("Mount_" + names[i]);
-                mount.transform.SetParent(root, false);
-                mount.transform.localPosition = wheelOffsets[i];
-
-                var visual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                visual.name = "WheelMesh_" + names[i];
-                visual.transform.SetParent(mount.transform, false);
-                float d = spec.wheelRadius * 2f;   // Unity cylinder: radius 0.5, height 2
-                visual.transform.localScale = new Vector3(d, 0.15f, d);   // 0.3 m wide tyre
-                visual.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-                Destroy(visual.GetComponent<Collider>());
-
-                wheels[i] = new VehiclePhysicsController.Wheel
-                {
-                    Name = names[i],
-                    MountPoint = mount.transform,
-                    VisualMesh = visual.transform,
-                    IsFront = i < 2
-                };
-            }
-
-            controller.SetWheels(wheels);
+            string name = vehicleSpec.bedLength > 0f ? "Pickup_Physics" : "Car_Physics";
+            _vehicle = VehicleFactory.Create(vehicleSpec, new Vector3(0f, 0.5f, 0f), 0f, name, out _cargo);
+            _vehicle.gameObject.AddComponent<VehicleInputAdapter>();
         }
 
         private void SetupCamera()

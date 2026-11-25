@@ -79,6 +79,8 @@ namespace BoxBox.Presentation.Vehicles
         private bool _handbrake;
         private bool _brake;
         private bool _reverseArmed, _reverseHeld;
+        private bool _aiControlled;
+        private float _aiWheelAngle, _aiThrust;
         private bool _fastSteer;
 
         // CAR_DATA state
@@ -154,8 +156,27 @@ namespace BoxBox.Presentation.Vehicles
         }
 
         // handling.c ProcessCarPad
+        /// <summary>
+        /// Civilian AI drives through the same physics: like civ_ai.c CivControl it sets the wheel
+        /// angle and thrust directly instead of the pad.
+        /// </summary>
+        public void SetAiControl(float wheelAngleDeg, float thrust)
+        {
+            _aiControlled = true;
+            _aiWheelAngle = wheelAngleDeg / AngleUnitToDeg;
+            _aiThrust = thrust;
+        }
+
         private void ProcessPad(float steps)
         {
+            if (_aiControlled)
+            {
+                _wheelAngle = _aiWheelAngle;
+                _thrust = _aiThrust;
+                _autoBrake = 0f;
+                return;
+            }
+
             bool steering = Mathf.Abs(_steerInput) > 0.1f;
 
             if (steering)
