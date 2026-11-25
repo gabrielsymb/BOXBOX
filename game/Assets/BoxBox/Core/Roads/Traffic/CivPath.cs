@@ -11,10 +11,12 @@ namespace BoxBox.Roads.Traffic
         /// <summary>Lane end at a junction: the car must obey the light here.</summary>
         public bool IsStopLine { get; }
         public RoadExit Approach { get; }
+        /// <summary>Turn this node belongs to: -1 left, +1 right, 0 straight on / lane.</summary>
+        public int Turn { get; }
 
-        public CivNode(RoadPoint pos, float speedLimitKmh, bool isStopLine = false, RoadExit approach = RoadExit.North)
+        public CivNode(RoadPoint pos, float speedLimitKmh, bool isStopLine = false, RoadExit approach = RoadExit.North, int turn = 0)
         {
-            Pos = pos; SpeedLimitKmh = speedLimitKmh; IsStopLine = isStopLine; Approach = approach;
+            Pos = pos; SpeedLimitKmh = speedLimitKmh; IsStopLine = isStopLine; Approach = approach; Turn = turn;
         }
     }
 
@@ -90,16 +92,27 @@ namespace BoxBox.Roads.Traffic
         }
 
         /// <summary>First stop line ahead and the distance to it along the path.</summary>
-        public bool TryNextStopLine(float station, out CivNode node, out float distance)
+        public bool TryNextStopLine(float station, out CivNode node, out float distance, out bool turnsLeft)
         {
             distance = -station;
             for (int i = 1; i < _nodes.Count; i++)
             {
                 distance += Distance(_nodes[i - 1].Pos, _nodes[i].Pos);
-                if (_nodes[i].IsStopLine) { node = _nodes[i]; return true; }
+                if (!_nodes[i].IsStopLine) continue;
+                node = _nodes[i];
+                turnsLeft = i + 1 < _nodes.Count && _nodes[i + 1].Turn < 0;
+                return true;
             }
             node = default;
+            turnsLeft = false;
             return false;
+        }
+
+        /// <summary>Replaces everything ahead of the car with a new start point (lane change).</summary>
+        public void Restart(CivNode from)
+        {
+            _nodes.Clear();
+            _nodes.Add(from);
         }
 
         public static float Distance(RoadPoint a, RoadPoint b) =>

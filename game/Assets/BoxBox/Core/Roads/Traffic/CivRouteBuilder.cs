@@ -61,17 +61,18 @@ namespace BoxBox.Roads.Traffic
 
             RoadPoint from = path.Nodes[path.Count - 1].Pos;
             RoadPoint to = next.LaneCentre(nextLane, nextForward ? -next.LengthM / 2f : next.LengthM / 2f);
-            if (Math.Abs(turn) > 45f && TryIntersect(from, inHeading, to, outHeading, out RoadPoint corner))
+            int turnSign = turn > 45f ? 1 : turn < -45f ? -1 : 0;
+            if (turnSign != 0 && TryIntersect(from, inHeading, to, outHeading, out RoadPoint corner))
             {
                 for (int i = 1; i <= 3; i++)   // quadratic curve through the corner
                 {
                     float t = i / 4f, u = 1f - t;
                     path.Add(new CivNode(new RoadPoint(
                         u * u * from.X + 2f * u * t * corner.X + t * t * to.X,
-                        u * u * from.Z + 2f * u * t * corner.Z + t * t * to.Z), next.Lanes.SpeedLimitKmh * 0.5f));
+                        u * u * from.Z + 2f * u * t * corner.Z + t * t * to.Z), next.Lanes.SpeedLimitKmh * 0.5f, turn: turnSign));
                 }
             }
-            path.Add(new CivNode(to, next.Lanes.SpeedLimitKmh));
+            path.Add(new CivNode(to, next.Lanes.SpeedLimitKmh, turn: turnSign));
             Road = nextId;
             Lane = nextLane;
             AddLaneEnd(path, next, nextLane);
@@ -83,8 +84,45 @@ namespace BoxBox.Roads.Traffic
             RoadSurfaceId junctionId = s.Connect[forward ? 0 : 1];
             RoadJunction junction = _network.Junction(junctionId);
             var approach = junction != null ? (RoadExit)Array.IndexOf(junction.Exits, Road) : RoadExit.North;
+            // Only real crossings have lights; a corner of the town is just a bend.
             path.Add(new CivNode(s.LaneCentre(lane, forward ? s.LengthM / 2f : -s.LengthM / 2f),
-                s.Lanes.SpeedLimitKmh, isStopLine: junction != null, approach: approach));
+                s.Lanes.SpeedLimitKmh, isStopLine: junction != null && ExitCount(junction) >= 3, approach: approach));
+        }
+
+        private static int ExitCount(RoadJunction j)
+        {
+            int n = 0;
+            foreach (RoadSurfaceId e in j.Exits) if (e.Kind == RoadSurfaceKind.Straight) n++;
+            return n;
+        }
+
+        /// <summary>
+        /// CheckChangeLanes: a random neighbour lane (±1) going the same way and open to AI,
+        /// the other side if that one is not allowed. -1 when the road has no such lane.
+        /// </summary>
+        public int PickNeighbourLane(RoadSurfaceId straight, int lane)
+        {
+            RoadLanes lanes = _network.Straight(straight).Lanes;
+            int first = _random.Next(2) == 0 ? lane - 1 : lane + 1;
+            for (int trial = 0; trial < 2; trial++)
+            {
+                int candidate = trial == 0 ? first : lane * 2 - first;
+                if (candidate < 0 || candidate >= lanes.Count) continue;
+                if (!lanes.IsAiLane(candidate) || lanes.IsParkingAllowedAt(candidate)) continue;
+                if (lanes.IsReversed(candidate) != lanes.IsReversed(lane)) continue;
+                return candidate;
+            }
+            return -1;
+        }
+
+        /// <summary>Restarts the path on another lane of the same straight, from a point ahead of the car.</summary>
+        public void ChangeLane(CivPath path, RoadSurfaceId straight, int newLane, float alongAhead)
+        {
+            RoadStraight s = _network.Straight(straight);
+            Road = straight;
+            Lane = newLane;
+            path.Restart(new CivNode(s.LaneCentre(newLane, alongAhead), s.Lanes.SpeedLimitKmh));
+            AddLaneEnd(path, s, newLane);
         }
 
         private static float Heading(RoadStraight s, bool forward) => RoadNetwork.Normalize(s.HeadingDeg + (forward ? 0f : 180f));

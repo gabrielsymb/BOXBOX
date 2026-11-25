@@ -34,7 +34,23 @@ namespace BoxBox.Presentation.World
             TestYardCentre = ToWorld(Town.Lot(YardColumn, YardRow).Centre);
         }
 
-        public Transform Build() => TownBuilder.Build(Town, IsBuildable, seed: 2026);
+        public Transform Build()
+        {
+            GroundRect yard = Town.Lot(YardColumn, YardRow);
+            var driveways = new[]
+            {
+                // grocery opens east, wholesaler west (where their pads are); the yard on every side
+                new TownBuilder.Driveway(StoreColumn, StoreRow, RoadExit.East, StorePad.z, 16f),
+                new TownBuilder.Driveway(WholesalerColumn, WholesalerRow, RoadExit.West, WholesalerPad.z, 18f),
+                new TownBuilder.Driveway(YardColumn, YardRow, RoadExit.North, yard.Centre.X, 14f),
+                new TownBuilder.Driveway(YardColumn, YardRow, RoadExit.South, yard.Centre.X, 14f),
+                new TownBuilder.Driveway(YardColumn, YardRow, RoadExit.East, yard.Centre.Z, 14f),
+                new TownBuilder.Driveway(YardColumn, YardRow, RoadExit.West, yard.Centre.Z, 14f),
+            };
+            Transform root = TownBuilder.Build(Town, IsBuildable, seed: 2026, driveways);
+            root.gameObject.AddComponent<TrafficLightView>().Build(Town.Network);
+            return root;
+        }
 
         private static bool IsBuildable(int c, int r) =>
             !(c == StoreColumn && r == StoreRow) && !(c == YardColumn && r == YardRow) &&

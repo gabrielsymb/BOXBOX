@@ -38,7 +38,15 @@ namespace BoxBox.Roads.Traffic
 
         private enum Thrust { Accelerate, StopAtNode, Stopped }
 
+        private const float YieldCheckM = 2048f * 0.006f;       // checkObstDist for YIELD_TURN
+        private const float LaneChangeCooldownS = 161f / 30f;   // changeLaneIndicateCount = 161
+        private const float LaneChangeChancePerS = 1f / 32f * 4f; // 1/32 per new node, ~4 nodes a second
+
         private readonly CivPath _path = new CivPath();
+        private readonly RoadNetwork _network;
+        private readonly Random _random;
+        private float _laneChangeCooldown = LaneChangeCooldownS;
+        private double _lastTime = double.NaN;
         private readonly CivRouteBuilder _route;
         private readonly float _halfBody;
         private Thrust _state = Thrust.Accelerate;
@@ -49,26 +57,35 @@ namespace BoxBox.Roads.Traffic
         public CivDriver(RoadNetwork network, RoadSurfaceId straight, int lane, float along, float halfBodyM, int seed)
         {
             _halfBody = halfBodyM;
+            _network = network;
+            _random = new Random(seed ^ 0x5bd1);
             _route = new CivRouteBuilder(network, seed);
             _route.Start(_path, straight, lane, along);
             Refill();
         }
 
-        public CivCommand Update(RoadPoint position, float headingDeg, float speedMs, float obstacleAheadM, double timeSeconds, bool turning)
+        public CivCommand Update(RoadPoint position, float headingDeg, float speedMs, ICivSensor sensor, double timeSeconds, bool turning)
         {
+            float dt = double.IsNaN(_lastTime) ? 0f : (float)(timeSeconds - _lastTime);
+            _lastTime = timeSeconds;
             Refill();
             float station = _path.FindStation(position);
+            if (TryChangeLane(position, headingDeg, speedMs, station, sensor, dt))
+            {
+                Refill();
+                station = _path.FindStation(position);
+            }
 
             // CivSteerAngle
             RoadPoint target = _path.PointOnPath(station + Math.Max(0f, speedMs) * CheckSeconds + _halfBody);
             float aim = (float)(Math.Atan2(target.X - position.X, target.Z - position.Z) * 180.0 / Math.PI);
             float steer = Clamp(DeltaAngle(headingDeg, aim), -MaxSteerDeg, MaxSteerDeg);
 
-            float thrust = TrafficRules(station, speedMs, timeSeconds, out bool brakeLight);
+            float thrust = TrafficRules(station, speedMs, timeSeconds, sensor, out bool brakeLight);
 
             // SetUpCivCollFlags + CivAccel: something in the box ahead -> brake by speed, up to 2 × newAccel
             float box = _halfBody + 0.56f + Math.Abs(speedMs) / 30f * (turning ? 4f : 13f);
-            if (obstacleAheadM < box)
+            if (sensor.ObstacleAhead < box)
             {
                 thrust = Math.Min(thrust, Math.Max(-speedMs * VdPerMs / 4f, -2f * NewAccel));
                 brakeLight = true;
@@ -81,13 +98,16 @@ namespace BoxBox.Roads.Traffic
             return new CivCommand(steer, thrust, brakeLight);
         }
 
-        private float TrafficRules(float station, float speedMs, double time, out bool brakeLight)
+        private float TrafficRules(float station, float speedMs, double time, ICivSensor sensor, out bool brakeLight)
         {
             brakeLight = false;
             float limitMs = _path.MinLimitWithin(station, 20f, 36f) / 3.6f;
             float stopDist = _halfBody * 3f;
-            bool hasStop = _path.TryNextStopLine(station, out CivNode stop, out float distToNode);
-            bool mustStop = hasStop && TrafficLights.PhaseAt(stop.Approach, time) != LightPhase.Green;
+            bool hasStop = _path.TryNextStopLine(station, out CivNode stop, out float distToNode, out bool turnsLeft);
+            bool red = hasStop && TrafficLights.PhaseAt(stop.Approach, time) != LightPhase.Green;
+            // CIV_AI_CTRL_YIELD_TURN: a left turn stops at the line and waits until nothing moves ahead
+            bool yield = hasStop && turnsLeft && !(_state == Thrust.Stopped && sensor.NearestMovingAhead > YieldCheckM);
+            bool mustStop = red || yield;
 
             switch (_state)
             {
@@ -102,7 +122,7 @@ namespace BoxBox.Roads.Traffic
                             // properVel = wheel_speed - 120000 Vd, spread over the distance left
                             _velRatio = (speedMs - 120000f / VdPerMs) / Math.Max(1f, distToNode - stopDist);
                             // Adaptation: a slow car would get a negative ratio and stall short of the line.
-                            _velRatio = Math.Max(_velRatio, 0.6f);
+                            _velRatio = Math.Max(_velRatio, 1f);
                             _state = Thrust.StopAtNode;
                             break;
                         }
@@ -123,6 +143,37 @@ namespace BoxBox.Roads.Traffic
             float accel = (properVel - speedMs) * VdPerMs * NewAccel / 15f;
             return Clamp(accel, -2f * NewAccel, NewAccel);
         }
+
+        // CheckChangeLanes, called from the driver instead of from node creation.
+        private bool TryChangeLane(RoadPoint position, float headingDeg, float speedMs, float station, ICivSensor sensor, float dt)
+        {
+            _laneChangeCooldown -= dt;
+            if (_laneChangeCooldown > 0f || _state != Thrust.Accelerate || speedMs < 3f) return false;
+            if (_random.NextDouble() > LaneChangeChancePerS * dt) return false;
+
+            RoadSurfaceId here = _network.FindSurface(position);
+            RoadStraight s = _network.Straight(here);
+            if (s == null) return false;
+            if (_path.TryNextStopLine(station, out _, out float toStop, out _) && toStop < 30f) return false;
+
+            int lane = _network.GetLane(here, position);
+            if (Math.Abs(RoadNetworkDelta(_network.LaneHeadingDeg(here, lane, position), headingDeg)) > 30f) return false;
+            int newLane = _route.PickNeighbourLane(here, lane);
+            if (newLane < 0) return false;
+
+            bool forward = !s.Lanes.IsReversed(lane);
+            bool toRight = forward ? newLane < lane : newLane > lane;   // lane 0 is the right edge of the heading
+            if (!sensor.IsSideFree(toRight)) return false;
+
+            float ahead = speedMs * 1.5f + 6f;
+            float along = s.Along(position) + (forward ? ahead : -ahead);
+            if (Math.Abs(along) > s.LengthM / 2f - 2f) return false;
+            _route.ChangeLane(_path, here, newLane, along);
+            _laneChangeCooldown = LaneChangeCooldownS;
+            return true;
+        }
+
+        private static float RoadNetworkDelta(float a, float b) => DeltaAngle(b, a);
 
         private void Refill()
         {

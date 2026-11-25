@@ -11,7 +11,9 @@ namespace BoxBox.Presentation.World
     /// </summary>
     public static class TownBuilder
     {
-        private const float AsphaltY = 0.006f, PaintY = 0.016f, SidewalkY = 0.005f;
+        private const float AsphaltY = 0.006f, PaintY = 0.016f;
+        /// <summary>Kerb height. The wheels climb it (suspension ray starts 0.6 m up), cars feel the bump.</summary>
+        public const float KerbHeightM = 0.15f;
         private static readonly Color Asphalt = new Color(0.2f, 0.2f, 0.22f);
         private static readonly Color Sidewalk = new Color(0.62f, 0.6f, 0.56f);
         private static readonly Color Yellow = new Color(0.95f, 0.78f, 0.15f);
@@ -19,8 +21,21 @@ namespace BoxBox.Presentation.World
 
         private static readonly Dictionary<Color, Material> Materials = new Dictionary<Color, Material>();
 
+        /// <summary>Opening in a block's kerb (driveway) on one side, centred at a coordinate along it.</summary>
+        public readonly struct Driveway
+        {
+            public readonly int Column, Row;
+            public readonly RoadExit Side;
+            public readonly float Centre, Width;
+            public Driveway(int column, int row, RoadExit side, float centre, float width)
+            {
+                Column = column; Row = row; Side = side; Centre = centre; Width = width;
+            }
+        }
+
         /// <param name="isBuildable">False for lots that must stay empty (shops, test yard).</param>
-        public static Transform Build(GridTown town, System.Func<int, int, bool> isBuildable, int seed)
+        public static Transform Build(GridTown town, System.Func<int, int, bool> isBuildable, int seed,
+            IReadOnlyList<Driveway> driveways = null)
         {
             var root = new GameObject("Town").transform;
             RoadNetwork net = town.Network;
@@ -38,11 +53,52 @@ namespace BoxBox.Presentation.World
             for (int c = 0; c < town.Spec.Columns; c++)
                 for (int r = 0; r < town.Spec.Rows; r++)
                 {
-                    GroundRect block = town.Block(c, r);
-                    Paint(root, $"Sidewalk_{c}_{r}", block.Centre, 0f, block.SizeX, block.SizeZ, SidewalkY, 0.01f, Sidewalk);
+                    AddSidewalks(root, town.Block(c, r), town.Spec.SidewalkM, c, r, driveways);
                     if (isBuildable(c, r)) AddBuildings(root, town.Lot(c, r), random);
                 }
             return root;
+        }
+
+        // Four raised strips around the lot; each driveway cuts a gap (a lowered kerb) in its side.
+        private static void AddSidewalks(Transform root, GroundRect block, float width, int c, int r,
+            IReadOnlyList<Driveway> driveways)
+        {
+            for (int side = 0; side < 4; side++)
+            {
+                var exit = (RoadExit)side;
+                bool northSouth = exit == RoadExit.North || exit == RoadExit.South;
+                // N/S strips run along X over the full block; E/W strips fill between them.
+                float from = northSouth ? block.MinX : block.MinZ + width;
+                float to = northSouth ? block.MaxX : block.MaxZ - width;
+                float fixedCoord = exit == RoadExit.North ? block.MaxZ - width / 2f : exit == RoadExit.South ? block.MinZ + width / 2f
+                                 : exit == RoadExit.East ? block.MaxX - width / 2f : block.MinX + width / 2f;
+
+                var gaps = new List<(float, float)>();
+                if (driveways != null)
+                    foreach (Driveway d in driveways)
+                        if (d.Column == c && d.Row == r && d.Side == exit) gaps.Add((d.Centre - d.Width / 2f, d.Centre + d.Width / 2f));
+                gaps.Sort((a, b) => a.Item1.CompareTo(b.Item1));
+
+                float start = from;
+                foreach ((float g0, float g1) in gaps)
+                {
+                    Kerb(root, northSouth, fixedCoord, start, Mathf.Min(g0, to), width);
+                    start = Mathf.Max(start, g1);
+                }
+                Kerb(root, northSouth, fixedCoord, start, to, width);
+            }
+        }
+
+        private static void Kerb(Transform root, bool alongX, float fixedCoord, float from, float to, float width)
+        {
+            if (to - from < 0.05f) return;
+            float mid = (from + to) / 2f;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Sidewalk";
+            go.transform.SetParent(root, false);
+            go.transform.position = alongX ? new Vector3(mid, KerbHeightM / 2f, fixedCoord) : new Vector3(fixedCoord, KerbHeightM / 2f, mid);
+            go.transform.localScale = alongX ? new Vector3(to - from, KerbHeightM, width) : new Vector3(width, KerbHeightM, to - from);
+            go.GetComponent<Renderer>().sharedMaterial = MaterialFor(Sidewalk);
         }
 
         // Line between lanes k and k+1: yellow where traffic directions meet, white otherwise.

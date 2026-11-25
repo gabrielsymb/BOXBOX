@@ -46,19 +46,24 @@ Carros civis usam **a mesma física** do jogador (`VehiclePhysicsController.SetA
 | `CivDriver` esterço | `CivSteerAngle` | mira em (velocidade × 20 quadros + meio carro) à frente, máx 45° |
 | `CivDriver` aceleração | `CivAccel`, `CivAccelTrafficRules` | `newAccel = 2000`, menos 3 por unidade de esterço; para no vermelho com `velRatio` (velocidade − 120000 Vd espalhada na distância), espera o verde |
 | `CivDriver` freio por obstáculo | `SetUpCivCollFlags` | caixa à frente = meio carro + 0,56 m + velocidade × 13 quadros (× 4 virando) → freia proporcional à velocidade, até 2 × newAccel |
+| `CivDriver` preferência | `CIV_AI_THRUST_YIELD` / `CIV_AI_CTRL_YIELD_TURN` | conversão à esquerda para na faixa e só sai sem nada se movendo a 2048 U (12 m) à frente |
+| `CivDriver` troca de faixa | `CheckChangeLanes` | faixa vizinha (±1) no mesmo sentido, liberada para IA; caixa de 512 U ao lado precisa estar vazia; 1/32 por nó novo; espera 161 quadros (~5 s) |
 | `TrafficManager` | `PingInCivCar`, `CheckPingOut` | 14 carros; quem passa de 230 m do jogador reaparece numa faixa a 45–180 m |
 
 Adaptações (documentadas no código): acima do limite o motorista tira o pé (Driver usava o arrasto
 linear que removemos); `velRatio` mínimo 0,6 para o carro não morrer antes da faixa; reduz a velocidade
 para o menor limite dos próximos 20 m (as curvas têm metade do limite).
 
-Ainda não tem: preferência em conversão à esquerda (`CIV_AI_CTRL_YIELD_TURN`), troca de faixa
-(`CheckChangeLanes`), estacionados, buzina, luz de freio visível, semáforo desenhado.
+Visual: semáforo em cada aproximação dos cruzamentos de 3+ saídas (à direita do motorista; N/S e L/O
+compartilham estado, como os dois `junctionLightsPhase` do Driver); luz de freio nos civis. Esquinas de
+2 saídas não têm faixa de parada. Calçada é um meio-fio de 15 cm com colisão; rebaixos (`Driveway`) na
+frente da mercearia, do atacado e nos 4 lados do pátio de testes.
+
+Ainda não tem: estacionados, buzina, pedestres.
 
 re3 (GTA III) foi derrubado por DMCA e não foi usado. `gtav-recomp` foi olhado: é só o runtime de
 recompilação do Xbox 360, sem a lógica do jogo.
 
 ## Próximo
 
-Semáforos visíveis, preferência e troca de faixa; meio-fio com rebaixo
-nas entradas; curvas desenhadas (o modelo já suporta, o gerador ainda só usa retas).
+Estacionados e pedestres; curvas desenhadas (o modelo já suporta, o gerador ainda só usa retas).
