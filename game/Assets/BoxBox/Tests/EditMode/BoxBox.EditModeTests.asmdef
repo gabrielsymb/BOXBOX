@@ -1,0 +1,15 @@
+{
+  "name": "BoxBox.EditModeTests",
+  "rootNamespace": "BoxBox.Tests",
+  "references": [
+    "BoxBox.Application",
+    "BoxBox.Domain",
+    "BoxBox.Simulation"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ]
+}

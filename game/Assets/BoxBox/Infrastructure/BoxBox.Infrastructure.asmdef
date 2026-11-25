@@ -1,0 +1,7 @@
+{
+  "name": "BoxBox.Infrastructure",
+  "rootNamespace": "BoxBox.Infrastructure",
+  "references": [
+    "BoxBox.Domain"
+  ]
+}

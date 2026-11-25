@@ -1,0 +1,39 @@
+{
+  "openingCashCents": 20000,
+  "dailyCustomerCount": 12,
+  "products": [
+    {
+      "id": "water",
+      "nameKey": "product.water",
+      "wholesaleCostCents": 165,
+      "startingRetailPriceCents": 350,
+      "competitorPriceCents": 325,
+      "customerWillingnessCents": 500,
+      "demandWeight": 5,
+      "initialOrderQuantity": 12,
+      "maximumOrderQuantity": 40
+    },
+    {
+      "id": "bread",
+      "nameKey": "product.bread",
+      "wholesaleCostCents": 280,
+      "startingRetailPriceCents": 500,
+      "competitorPriceCents": 470,
+      "customerWillingnessCents": 700,
+      "demandWeight": 4,
+      "initialOrderQuantity": 10,
+      "maximumOrderQuantity": 40
+    },
+    {
+      "id": "snack",
+      "nameKey": "product.snack",
+      "wholesaleCostCents": 240,
+      "startingRetailPriceCents": 450,
+      "competitorPriceCents": 400,
+      "customerWillingnessCents": 600,
+      "demandWeight": 3,
+      "initialOrderQuantity": 8,
+      "maximumOrderQuantity": 40
+    }
+  ]
+}

@@ -16,6 +16,11 @@ Este repositório contém o projeto do jogo **BOXBOX**, um simulador bilíngue d
 
 Se houver divergência, use esta precedência: decisão explícita mais recente do usuário; decisões e invariantes deste arquivo; documento especializado para o assunto; prompt-mestre. A skill orienta o trabalho e resume essas fontes, mas nunca as substitui ou contradiz.
 
+Documentos de implementação, testes e pesquisa que descrevem Godot referem-se ao
+protótipo anterior. Para qualquer trabalho no jogo novo, siga `game/AGENTS.md` e a
+decisão vigente de Unity; não use instruções específicas do protótipo Godot como
+arquitetura ou procedimento de execução para `game/`.
+
 ## Decisões confirmadas
 
 - Nome: BOXBOX.
@@ -25,7 +30,8 @@ Se houver divergência, use esta precedência: decisão explícita mais recente 
 - Plataforma-alvo inicial: PC.
 - O jogador começa em uma mercearia de conveniência, o único segmento jogável. O mix inclui alimentos, bebidas e itens de conveniência.
 - O abastecimento inicial acontece no mundo aberto. O jogador faz o pedido, vai fisicamente ao atacado na caminhonete, carrega a mercadoria e retorna à mercearia para descarregar. A navegação usa destino e rota compartilhados entre minimapa e mapa geral. A [missão de abastecimento](docs/grocery-supply-run.md) registra o fluxo.
-- Engine escolhida: Godot, com C# pela edição .NET. Godot 4.7.2 Stable é a versão recomendada para iniciar; reavaliar somente se surgir incompatibilidade concreta.
+- Decisão explícita mais recente do usuário: Unity é a engine do jogo novo em `game/`; Godot foi abandonada. O Unity reboot em `BOXBOX/reboot/` é uma referência técnica de configuração, não o destino do produto.
+- O jogo novo usa C# na Unity. A versão inicial alvo é Unity 6.3 LTS (`6000.3.29f1`), conforme o editor já registrado no workspace; reavaliar apenas diante de incompatibilidade concreta.
 - A implementação começa pelos motores de IA/comportamento. Eles serão módulos plugáveis no mesmo processo, isolados por contratos; processos separados ficam como opção futura se houver necessidade concreta.
 - Steam é a candidata principal conhecida, não uma decisão exclusiva.
 - O produto não será escrito em Python.
