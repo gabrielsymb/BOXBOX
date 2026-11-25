@@ -25,7 +25,8 @@ namespace BoxBox.Presentation.Vehicles
 
             float throttle = Input.GetAxisRaw("Vertical");
             float steer = Input.GetAxisRaw("Horizontal");
-            bool handbrake = Input.GetKey(KeyCode.Space);
+            bool brake = Input.GetKey(KeyCode.Space);
+            bool handbrake = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
 
             // Suporte direto por KeyCode (previne problemas com eixos no Linux/OpenGL)
             if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))
@@ -39,7 +40,7 @@ namespace BoxBox.Presentation.Vehicles
                 steer = -1f;
 
             bool fastSteer = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            _controller.SetInputs(throttle, steer, handbrake, fastSteer);
+            _controller.SetInputs(throttle, steer, handbrake, fastSteer, brake);
         }
 
         public void SetInputEnabled(bool isEnabled)

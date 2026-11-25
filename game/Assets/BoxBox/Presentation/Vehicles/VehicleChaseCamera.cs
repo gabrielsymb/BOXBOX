@@ -22,8 +22,12 @@ namespace BoxBox.Presentation.Vehicles
         [SerializeField] private CameraMode mode = CameraMode.ChaseDriver2;
 
         [Header("Driver 2 Chase Camera Settings (camera.c)")]
-        [SerializeField] private float chaseDistance = 6.0f;
-        [SerializeField] private float chaseHeight = 2.2f;
+        [SerializeField] private float chaseDistance = 5.4f;
+        [SerializeField] private float chaseHeight = 1.9f;
+        [Tooltip("Field of view parked / at fastFovKmh. Widening with speed is what sells the speed.")]
+        [SerializeField] private float baseFov = 60f;
+        [SerializeField] private float fastFov = 74f;
+        [SerializeField] private float fastFovKmh = 110f;
         [SerializeField] private float followSmoothTime = 0.12f;
         [Tooltip("Yaw follow speed in normal driving: high = camera stays glued behind the car.")]
         [SerializeField] private float rotationSmoothSpeed = 10.0f;
@@ -41,6 +45,8 @@ namespace BoxBox.Presentation.Vehicles
         private Camera _cam;
         private Rigidbody _targetRb;
         private Vector3 _currentVelocity;
+        private Vector3 _offset;
+        private bool _hasOffset;
         private float _currentCamYaw;
 
         public CameraMode CurrentMode => mode;
@@ -66,6 +72,7 @@ namespace BoxBox.Presentation.Vehicles
         {
             mode = mode == CameraMode.ChaseDriver2 ? CameraMode.DioramaIsometric : CameraMode.ChaseDriver2;
             _currentVelocity = Vector3.zero;
+            _hasOffset = false;
         }
 
         private void Update()
@@ -99,10 +106,18 @@ namespace BoxBox.Presentation.Vehicles
 
             // Compute ideal camera position behind the car
             Vector3 behindOffset = camRotation * new Vector3(0f, chaseHeight, -chaseDistance);
-            Vector3 desiredPosition = targetVehicle.position + behindOffset;
 
-            // Critically-damped position smoothing (SmoothDamp eliminates jitter completely)
-            transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref _currentVelocity, followSmoothTime);
+            // Smooth only the offset from the car. Smoothing the world position made the camera fall
+            // further behind the faster the car went, which read as slow motion.
+            if (!_hasOffset) { _offset = behindOffset; _hasOffset = true; }
+            _offset = Vector3.SmoothDamp(_offset, behindOffset, ref _currentVelocity, followSmoothTime);
+            transform.position = targetVehicle.position + _offset;
+
+            if (_cam != null && _targetRb != null)
+            {
+                float speed01 = Mathf.Clamp01(_targetRb.linearVelocity.magnitude * 3.6f / fastFovKmh);
+                _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Mathf.Lerp(baseFov, fastFov, speed01), 4f * Time.deltaTime);
+            }
 
             // Look slightly ahead of the car center
             Vector3 lookTarget = targetVehicle.position + (targetVehicle.forward * lookAheadDistance) + (Vector3.up * 0.8f);

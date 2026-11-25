@@ -50,6 +50,9 @@ namespace BoxBox.Presentation.Vehicles
         // for a 1350 kg car, so a heavier vehicle with the same engine accelerates (and tops out) slower.
         public const float ReferenceMassKg = 1350f;
 
+        // Reverse gear engages only below this forward speed (about 5 km/h).
+        private const float ReverseEngageMs = 1.4f;
+
         [Header("Car characteristics")]
         [SerializeField] private VehicleSpec spec;
 
@@ -74,6 +77,8 @@ namespace BoxBox.Presentation.Vehicles
         private float _throttleInput;
         private float _steerInput;
         private bool _handbrake;
+        private bool _brake;
+        private bool _reverseArmed, _reverseHeld;
         private bool _fastSteer;
 
         // CAR_DATA state
@@ -108,8 +113,11 @@ namespace BoxBox.Presentation.Vehicles
             _rb.centerOfMass = spec.centerOfMass;
         }
 
-        public void SetInputs(float throttle, float steer, bool handbrake, bool fastSteer = false)
+        /// <param name="throttle">+1 accelerate, -1 reverse gear (only once nearly stopped).</param>
+        /// <param name="brake">Foot brake: slows the car in either direction, never reverses it.</param>
+        public void SetInputs(float throttle, float steer, bool handbrake, bool fastSteer = false, bool brake = false)
         {
+            _brake = brake;
             _fastSteer = fastSteer;
             _throttleInput = Mathf.Clamp(throttle, -1f, 1f);
             _steerInput = Mathf.Clamp(steer, -1f, 1f);
@@ -166,12 +174,29 @@ namespace BoxBox.Presentation.Vehicles
                 _autoBrake = 0f;
             }
 
+            // Reverse is armed when S is pressed with the car (nearly) stopped, and stays armed while held.
+            bool reversePressed = _throttleInput < -0.05f;
+            if (!reversePressed) _reverseArmed = false;
+            else if (!_reverseHeld && ForwardSpeedMs() <= ReverseEngageMs) _reverseArmed = true;
+            _reverseHeld = reversePressed;
+
             _thrust = 0f;
             _engine.UpdatePedal(spec, _throttleInput, steps * StepTime);
-            if (_throttleInput < -0.05f && ForwardSpeedMs() > 0.5f)
+            float forwardMs = ForwardSpeedMs();
+            if (_brake)
             {
-                // Driver brake: full brake force while still rolling forward
-                _thrust = spec.powerRatio * -5000f;
+                // Driver brake (negative thrust while rolling forward). Rolling backwards the same
+                // pedal pushes the other way, and lets go at rest so it never drives the car.
+                if (forwardMs > 0.3f) _thrust = spec.powerRatio * -5000f;
+                // Rolling backwards: mirror of the brake, faded to zero as the car stops so it never
+                // pushes forward. Grip is handled in GetFrictionScales (_brakingBackwards).
+                else if (forwardMs < -0.3f) _thrust = spec.powerRatio * 5000f * Mathf.Clamp01(-forwardMs / 3f);
+            }
+            else if (_throttleInput < -0.05f && (forwardMs > ReverseEngageMs || !_reverseArmed))
+            {
+                // S while rolling forward brakes like Driver's pad brake. Reverse needs S released and
+                // pressed again once stopped, so a long brake never turns into reversing by itself.
+                if (forwardMs > 0.3f) _thrust = spec.powerRatio * -5000f;
             }
             else if (_throttleInput < -0.05f)
             {
@@ -190,7 +215,11 @@ namespace BoxBox.Presentation.Vehicles
         // wheelforces.c GetFrictionScalesDriver1 (player handling type 0: autoBrakeOn, aggressive braking)
         private void GetFrictionScales(out float frontFS, out float rearFS)
         {
-            frontFS = _thrust < 0f ? 1453f : (_thrust < 1f ? 937f : 820f);
+            // Braking while rolling backwards is still braking: give it the brake grip (1453), not the
+            // drive grip, and skip the reverse-coast penalty below. Driver has no such case because its
+            // brake and reverse share a button; without this the front lets go and the car slides sideways.
+            bool brakingBackwards = _brake && _wheelSpeed < 0f;
+            frontFS = _thrust < 0f || brakingBackwards ? 1453f : (_thrust < 1f ? 937f : 820f);
 
             // holding the steering gradually gives the front more bite (max after 13 steps)
             if (_autoBrake > 0f && _wheelSpeed > 0f)
@@ -207,7 +236,7 @@ namespace BoxBox.Presentation.Vehicles
                 _rearLocked = true;
             }
 
-            if (_wheelSpeed < 0f && _thrust > -1f && !_handbrake)
+            if (_wheelSpeed < 0f && _thrust > -1f && !_handbrake && !brakingBackwards)
                 frontFS -= 400f;
 
             rearFS = FrictionTotal - frontFS;

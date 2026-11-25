@@ -5,6 +5,7 @@
     "BoxBox.Application",
     "BoxBox.Domain",
     "BoxBox.Infrastructure",
-    "BoxBox.Simulation"
+    "BoxBox.Simulation",
+    "BoxBox.Roads"
   ]
 }

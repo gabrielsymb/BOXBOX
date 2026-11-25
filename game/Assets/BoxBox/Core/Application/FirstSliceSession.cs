@@ -29,6 +29,7 @@ namespace BoxBox.Application
         public OperationResult ArriveAtStore() => PhaseCommand(ShopRules.ArriveAtStore(State));
         public OperationResult OpenStore() => PhaseCommand(ShopRules.OpenStore(State));
         public OperationResult CloseStore() => PhaseCommand(ShopRules.CloseStore(State));
+        public OperationResult StartNextDay() => PhaseCommand(ShopRules.StartNextDay(State));
 
         public OperationResult BuyAtWholesaler(IReadOnlyList<int> quantities)
         {

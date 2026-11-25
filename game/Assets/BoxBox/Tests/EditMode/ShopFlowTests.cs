@@ -146,6 +146,41 @@ namespace BoxBox.Tests
             Assert.That(first.NetProfit.Cents, Is.EqualTo(first.GrossProfit.Cents - first.LostGoods.Cents));
         }
 
+        [Test]
+        public void CanDriveBackToTheWholesalerToBuyMore()
+        {
+            ShopState state = AtWholesaler(CreateState(5000, 2));
+            Assert.That(ShopRules.BuyAtWholesaler(state, new[] { 1, 0 }).IsSuccess, Is.True);
+            Assert.That(ShopRules.LeaveWholesaler(state).IsSuccess, Is.True);
+            Assert.That(ShopRules.ArriveAtWholesaler(state).IsSuccess, Is.True);
+            Assert.That(ShopRules.BuyAtWholesaler(state, new[] { 1, 0 }).IsSuccess, Is.True);
+            Assert.That(state.CargoAt(0), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void NextDayKeepsStockAndCashAndRestocksTheWholesaler()
+        {
+            ShopState state = AtWholesaler(CreateState(10000, 1));
+            Assert.That(ShopRules.BuyAtWholesaler(state, new[] { 5, 0 }).IsSuccess, Is.True);
+            DriveToStore(state);
+            Assert.That(ShopRules.UnloadCargo(state, new[] { 5, 0 }).IsSuccess, Is.True);
+            Assert.That(ShopRules.OpenStore(state).IsSuccess, Is.True);
+            Assert.That(new FirstSliceSession(state, new SeededShopperPolicy(3)).ServeNextCustomer().IsSuccess, Is.True);
+            Assert.That(ShopRules.CloseStore(state).IsSuccess, Is.True);
+            long cash = state.Cash.Cents;
+            int stock = state.InventoryAt(0);
+
+            Assert.That(ShopRules.StartNextDay(state).IsSuccess, Is.True);
+            Assert.That(state.Day, Is.EqualTo(2));
+            Assert.That(state.Phase, Is.EqualTo(ShopPhase.AtStore));
+            Assert.That(state.OpeningCash.Cents, Is.EqualTo(cash));
+            Assert.That(state.InventoryAt(0), Is.EqualTo(stock));
+            Assert.That(state.CustomersRemaining, Is.EqualTo(1));
+            Assert.That(state.SupplierPurchases.Cents, Is.Zero);
+            Assert.That(state.WholesalerStockAt(0), Is.EqualTo(20));
+            Assert.That(ShopRules.StartNextDay(state).Code, Is.EqualTo(OperationCode.WrongPhase));
+        }
+
         private static ShopState CreateState(long cash, int customers)
         {
             return ShopRules.CreateNew(new[]

@@ -4,7 +4,8 @@
   "references": [
     "BoxBox.Application",
     "BoxBox.Domain",
-    "BoxBox.Simulation"
+    "BoxBox.Simulation",
+    "BoxBox.Roads"
   ],
   "optionalUnityReferences": [
     "TestAssemblies"

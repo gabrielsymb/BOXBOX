@@ -1,4 +1,5 @@
 using BoxBox.Presentation.Supply;
+using BoxBox.Presentation.World;
 using UnityEngine;
 
 namespace BoxBox.Presentation.Vehicles
@@ -14,32 +15,37 @@ namespace BoxBox.Presentation.Vehicles
         private VehiclePhysicsController _vehicle;
         private VehicleChaseCamera _camera;
         private CargoBed _cargo;
+        private SandboxTown _town;
 
         private void Start()
         {
+            _town = new SandboxTown();
+            _town.Build();
             SetupVehicle();
             SetupCamera();
-            SetupTestCourse();
+            SetupTestCourse(_town.TestYardCentre);
             SetupSupplyRun();
         }
 
-        // Grocery around the spawn point, wholesaler ~230 m away: the first playable supply run.
+        // Grocery at the spawn point, wholesaler across the avenues: the first playable supply run.
         private void SetupSupplyRun()
         {
             if (_cargo == null) return;
-            _vehicle.gameObject.AddComponent<SupplyRunController>()
-                .Init(_vehicle, _cargo, new Vector3(0f, 0f, 0f), new Vector3(90f, 0f, 210f));
+            var supply = _vehicle.gameObject.AddComponent<SupplyRunController>();
+            supply.Init(_vehicle, _cargo, _town.StorePad, _town.WholesalerPad);
+            _vehicle.gameObject.AddComponent<RouteGuide>().Init(_town.Town.Network, () => supply.Destination);
         }
 
-        // Ramp + slalom pillars so suspension, weight transfer and slides can be felt.
-        private void SetupTestCourse()
+        // Ramp + slalom pillars in the empty lot across the street, so suspension, weight transfer
+        // and slides can be felt.
+        private void SetupTestCourse(Vector3 yard)
         {
             var course = new GameObject("TestCourse").transform;
 
             var ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ramp.name = "Ramp";
             ramp.transform.SetParent(course, false);
-            ramp.transform.position = new Vector3(0f, 0.6f, 45f);
+            ramp.transform.position = yard + new Vector3(8f, 0.6f, 0f);
             ramp.transform.rotation = Quaternion.Euler(-12f, 0f, 0f);
             ramp.transform.localScale = new Vector3(6f, 0.5f, 8f);
 
@@ -48,7 +54,7 @@ namespace BoxBox.Presentation.Vehicles
                 var pillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 pillar.name = "Slalom_" + i;
                 pillar.transform.SetParent(course, false);
-                pillar.transform.position = new Vector3(-20f, 0.75f, 10f + i * 14f);
+                pillar.transform.position = yard + new Vector3(-12f, 0.75f, -20f + i * 8f);
                 pillar.transform.localScale = new Vector3(0.6f, 1.5f, 0.6f);
             }
         }
@@ -135,6 +141,7 @@ namespace BoxBox.Presentation.Vehicles
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.R)) ResetVehicle();
+            if (_vehicle != null && _vehicle.transform.position.y < -10f) RescueFromLimbo();
         }
 
         private void OnGUI()
@@ -146,16 +153,18 @@ namespace BoxBox.Presentation.Vehicles
             GUILayout.Label("<b>BOXBOX | Física do Veículo (REDRIVER2)</b>");
             GUILayout.Label($"Velocidade: <b>{_vehicle.SpeedKmh:0} km/h</b>");
             GUILayout.Label($"Esterçamento: <b>{_vehicle.CurrentSteerAngle:0.0}°</b>");
+            GUILayout.Label(RoadPositionText.Describe(_town.Town.Network, _vehicle.transform, _vehicle.SpeedKmh));
             if (_cargo != null)
             {
                 GUILayout.Label($"Caçamba: <b>{_cargo.CountOnBoard()}/{_cargo.Capacity} caixas</b> ({_cargo.LoadedMassKg():0} kg)");
             }
             GUILayout.Space(6f);
 
-            GUILayout.Label("<b>Controles na Tela (ou teclado W/A/S/D):</b>");
+            GUILayout.Label("<b>W acelera · S/Espaço freia · S de novo parado = ré · Ctrl freio de mão</b>");
             GUILayout.BeginHorizontal();
             if (GUILayout.RepeatButton("▲ Acelerar (W)")) _vehicle.SetInputs(1f, 0f, false);
-            if (GUILayout.RepeatButton("▼ Frear/Ré (S)")) _vehicle.SetInputs(-1f, 0f, false);
+            if (GUILayout.RepeatButton("■ Freio (Espaço)")) _vehicle.SetInputs(0f, 0f, false, false, true);
+            if (GUILayout.RepeatButton("▼ Freio/Ré (S)")) _vehicle.SetInputs(-1f, 0f, false);
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
@@ -176,6 +185,17 @@ namespace BoxBox.Presentation.Vehicles
             GUILayout.EndHorizontal();
 
             GUILayout.EndArea();
+        }
+
+        // Fell off the world: put the car back on the closest crossing instead of losing it.
+        private void RescueFromLimbo()
+        {
+            Vector3 p = _vehicle.transform.position;
+            var finder = new BoxBox.Roads.RouteFinder(_town.Town.Network);
+            BoxBox.Roads.RoadSurfaceId j = finder.NearestJunction(new BoxBox.Roads.RoadPoint(p.x, p.z));
+            BoxBox.Roads.RoadPoint c = _town.Town.Network.Junction(j).Centre;
+            _vehicle.transform.position = new Vector3(c.X, 0.5f, c.Z);
+            ResetVehicle();
         }
 
         private void ResetVehicle()

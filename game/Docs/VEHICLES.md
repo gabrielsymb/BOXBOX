@@ -74,7 +74,7 @@ Caminhonete vazia: 1800 kg, motor 1.35 → acelera como o carro médio. Carregad
 
 ## Controles (teclado)
 
-W acelera · S freia/ré · A/D esterça (toque = curva suave, segurar = mais fechada; vira menos em alta velocidade) · Shift+A/D curva fechada rápida · Espaço freio de mão · C troca câmera · R reseta (só na SandboxLab, ferramenta de teste)
+W acelera · Espaço ou S freia · S de novo com o carro parado = ré · A/D esterça (toque = curva suave, segurar = mais fechada; vira menos em alta velocidade) · Shift+A/D curva fechada rápida · Ctrl freio de mão · C troca câmera · R reseta (só na SandboxLab, ferramenta de teste)
 
 Compra e descarga de caixas: ver [SUPPLY_RUN.md](./SUPPLY_RUN.md).
 

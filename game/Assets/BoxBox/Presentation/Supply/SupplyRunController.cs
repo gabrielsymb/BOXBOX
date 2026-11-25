@@ -35,6 +35,22 @@ namespace BoxBox.Presentation.Supply
         private ShopState State => _session.State;
         private bool IsStopped => Mathf.Abs(_vehicle.SpeedKmh) < MaxTradeSpeedKmh;
 
+        /// <summary>Where the player should drive now; null while trading or with nothing to do.</summary>
+        public Vector3? Destination
+        {
+            get
+            {
+                if (_session == null) return null;
+                switch (State.Phase)
+                {
+                    case ShopPhase.AtStore: return HasStock() ? (Vector3?)null : _wholesaler.center;
+                    case ShopPhase.DrivingToWholesaler: return _wholesaler.center;
+                    case ShopPhase.DrivingToStore: return _store.center;
+                    default: return null;
+                }
+            }
+        }
+
         public void Init(VehiclePhysicsController vehicle, CargoBed cargo, Vector3 storePad, Vector3 wholesalerPad)
         {
             _vehicle = vehicle;
@@ -68,6 +84,7 @@ namespace BoxBox.Presentation.Supply
                 case ShopPhase.DrivingToWholesaler when inWholesaler: _session.ArriveAtWholesaler(); break;
                 case ShopPhase.DrivingToWholesaler when inStore: _session.ArriveAtStore(); break;
                 case ShopPhase.AtWholesaler when !inWholesaler: _session.LeaveWholesaler(); break;
+                case ShopPhase.DrivingToStore when inWholesaler: _session.ArriveAtWholesaler(); break;
                 case ShopPhase.DrivingToStore when inStore: _session.ArriveAtStore(); break;
             }
         }
@@ -89,6 +106,15 @@ namespace BoxBox.Presentation.Supply
             {
                 RunBusinessDay();
             }
+            else if (State.Phase == ShopPhase.Closed && Input.GetKeyDown(KeyCode.N))
+            {
+                StartNextDay();
+            }
+        }
+
+        private void StartNextDay()
+        {
+            if (_session.StartNextDay().IsSuccess) _report = null;
         }
 
         private void BuyOneCrate(int index)
@@ -160,8 +186,11 @@ namespace BoxBox.Presentation.Supply
         {
             if (_session == null) return;
             GUILayout.BeginArea(new Rect(Screen.width - 376f, 16f, 360f, 420f), GUI.skin.box);
-            GUILayout.Label($"<b>{PhaseText(State.Phase)}</b>   {Text("cash")}: <b>{Format(State.Cash)}</b>");
-            GUILayout.Label(NextStepHint());
+            GUILayout.Label($"<b>{string.Format(Text("supply.day"), State.Day)} · {PhaseText(State.Phase)}</b>   " +
+                            $"{Text("cash")}: <b>{Format(State.Cash)}</b>");
+            GUILayout.Label(StepList());
+            if (!IsStopped && (State.Phase == ShopPhase.AtWholesaler || State.Phase == ShopPhase.UnloadPending))
+                GUILayout.Label($"<color=orange>{Text("supply.stop")}</color>");
             if (_message.Length > 0) GUILayout.Label($"<b>{_message}</b>");
             GUILayout.Space(4f);
             GUILayout.Label(ProductTable());
@@ -192,30 +221,47 @@ namespace BoxBox.Presentation.Supply
             {
                 RunBusinessDay();
             }
+            else if (State.Phase == ShopPhase.Closed && GUILayout.Button(Text("supply.nextDay")))
+            {
+                StartNextDay();
+            }
             GUI.enabled = true;
         }
 
-        private string NextStepHint()
+        // The whole loop as a checklist: done steps greyed, the current one bold with the distance.
+        private string StepList()
+        {
+            int current = CurrentStep();
+            var sb = new StringBuilder();
+            for (int step = 1; step <= 5; step++)
+            {
+                string text = string.Format(Text("supply.step" + step), State.Products.Count);
+                if (step == current)
+                {
+                    sb.Append("▶ <b>").Append(text).Append("</b>");
+                    if (step == 1) sb.Append($" ({Distance(_wholesaler):0} m)");
+                    if (step == 3) sb.Append($" ({Distance(_store):0} m)");
+                }
+                else sb.Append(step < current ? "<color=#888>✓ " : "<color=#aaa>   ").Append(text).Append("</color>");
+                if (step < 5) sb.Append('\n');
+            }
+            return sb.ToString();
+        }
+
+        private int CurrentStep()
         {
             switch (State.Phase)
             {
-                case ShopPhase.AtStore:
-                    return HasStock() ? Text("supply.open") + "\n" + GoTo(_wholesaler, "supply.wholesaler")
-                                      : Text("supply.goal") + "\n" + GoTo(_wholesaler, "supply.wholesaler");
-                case ShopPhase.DrivingToWholesaler: return GoTo(_wholesaler, "supply.wholesaler");
-                case ShopPhase.AtWholesaler:
-                    return IsStopped ? string.Format(Text("supply.buy"), State.Products.Count) : Text("supply.stop");
-                case ShopPhase.DrivingToStore: return GoTo(_store, "supply.store");
-                case ShopPhase.UnloadPending: return IsStopped ? Text("supply.unload") : Text("supply.stop");
-                default: return "";
+                case ShopPhase.AtStore: return HasStock() ? 5 : 1;
+                case ShopPhase.DrivingToWholesaler: return 1;
+                case ShopPhase.AtWholesaler: return 2;
+                case ShopPhase.DrivingToStore: return 3;
+                case ShopPhase.UnloadPending: return 4;
+                default: return 6;   // open or closed: every step done
             }
         }
 
-        private string GoTo(Bounds site, string nameKey)
-        {
-            float metres = Vector3.Distance(_vehicle.transform.position, site.center);
-            return string.Format(Text("supply.goTo"), Text(nameKey)) + $" ({metres:0} m)";
-        }
+        private float Distance(Bounds site) => Vector3.Distance(_vehicle.transform.position, site.center);
 
         private string ProductTable()
         {

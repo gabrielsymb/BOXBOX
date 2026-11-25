@@ -38,9 +38,26 @@ namespace BoxBox.Domain
             return Transition(state, ShopPhase.AtStore, ShopPhase.DrivingToWholesaler);
         }
 
+        /// <summary>
+        /// Reaching the wholesaler counts from any trip, including driving back to it with goods
+        /// already on board to buy more: where the vehicle is decides, not the order of the steps.
+        /// </summary>
         public static OperationResult ArriveAtWholesaler(ShopState state)
         {
+            if (state.Phase == ShopPhase.DrivingToStore)
+                return Transition(state, ShopPhase.DrivingToStore, ShopPhase.AtWholesaler);
             return Transition(state, ShopPhase.DrivingToWholesaler, ShopPhase.AtWholesaler);
+        }
+
+        /// <summary>After closing: next day starts at the store, the wholesaler restocks.</summary>
+        public static OperationResult StartNextDay(ShopState state)
+        {
+            OperationResult result = Transition(state, ShopPhase.Closed, ShopPhase.AtStore);
+            if (!result.IsSuccess) return result;
+            state.Day++;
+            state.ResetDailyTotals();
+            RestockWholesaler(state);
+            return result;
         }
 
         /// <summary>

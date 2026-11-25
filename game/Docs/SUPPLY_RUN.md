@@ -26,11 +26,15 @@ cliente atendido) num `IShopEventSink`, só depois de o comando ter sucesso. A H
 
 ## Na SandboxLab (Presentation/Supply)
 
-- Mercearia: piso verde no ponto de partida. Atacado: piso amarelo ~230 m à frente e à direita.
+- Mercearia: piso verde no ponto de partida. Atacado: piso amarelo do outro lado das avenidas;
+  siga a linha azul (GPS) no chão. Ver [ROADS.md](ROADS.md).
 - No atacado, **parado**: teclas **1/2/3** compram 1 caixa do produto (cada caixa = 1 unidade,
   colorida por produto). Capacidade da caçamba: 18 caixas.
 - Na mercearia, parado: **E** descarrega (conta as caixas que ainda estão na caçamba);
-  **O** abre a loja, atende os clientes do dia e mostra o relatório.
+  **O** abre a loja, atende os clientes do dia e mostra o relatório; **N** começa o próximo dia
+  (caixa e estoque continuam, atacado repõe, totais do dia zeram).
+- A chegada vale pela posição: dá pra voltar ao atacado com carga e comprar mais.
+- O painel mostra os 5 passos do ciclo como checklist, com o passo atual em negrito.
 
 ## Origem
 

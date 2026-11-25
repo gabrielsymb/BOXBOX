@@ -31,7 +31,9 @@ namespace BoxBox.Domain
         private readonly int _dailyCustomerCount;
 
         public ShopPhase Phase { get; internal set; }
-        public Money OpeningCash { get; }
+        public Money OpeningCash { get; internal set; }
+        /// <summary>Business day, starting at 1.</summary>
+        public int Day { get; internal set; } = 1;
         public Money Cash { get; internal set; }
         public Money SupplierPurchases { get; internal set; }
         public Money SalesRevenue { get; internal set; }
@@ -102,6 +104,20 @@ namespace BoxBox.Domain
         internal void SetCargo(int index, int value) => _cargo[index] = value;
         internal void SetWholesalerStock(int index, int value) => _wholesalerStock[index] = value;
         internal void SetUnitsSold(int index, int value) => _unitsSold[index] = value;
+
+        /// <summary>Starts the daily totals over; stock, cash and prices carry on.</summary>
+        internal void ResetDailyTotals()
+        {
+            OpeningCash = Cash;
+            SupplierPurchases = Money.Zero;
+            SalesRevenue = Money.Zero;
+            LostGoods = Money.Zero;
+            UnitsLost = 0;
+            CustomersProcessed = 0;
+            CompetitorChoices = 0;
+            PassedCustomers = 0;
+            Array.Clear(_unitsSold, 0, _unitsSold.Length);
+        }
         internal void SetRetailPrice(int index, long value) => _retailPrices[index] = value;
 
         public ShopSnapshot CreateSnapshot()
