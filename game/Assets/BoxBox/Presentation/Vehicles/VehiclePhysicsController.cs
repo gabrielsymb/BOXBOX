@@ -79,6 +79,7 @@ namespace BoxBox.Presentation.Vehicles
         // CAR_DATA state
         private float _wheelAngle;   // D angle units, + = right
         private float _thrust;       // Vd per step
+        private readonly VehicleEngine _engine = new VehicleEngine();
         private float _wheelSpeed;   // forward speed, Vd
         private float _autoBrake;    // steps steering has been held
         private bool _frontLocked, _rearLocked;
@@ -126,6 +127,22 @@ namespace BoxBox.Presentation.Vehicles
 
             ProcessPad(steps);
             AddWheelForces(steps);
+            AddRoadResistance();
+        }
+
+        private float ForwardSpeedMs() => Vector3.Dot(_rb.linearVelocity, transform.forward);
+
+        // Air drag + rolling resistance + engine braking, applied at the centre of mass while on the ground.
+        private void AddRoadResistance()
+        {
+            bool grounded = false;
+            foreach (Wheel w in wheels) grounded |= w.IsGrounded;
+            if (!grounded) return;
+
+            Vector3 flat = Vector3.ProjectOnPlane(_rb.linearVelocity, Vector3.up);
+            if (flat.sqrMagnitude < 1e-4f) return;
+            float resist = _engine.ResistanceForce(spec, flat.magnitude, _rb.mass);
+            _rb.AddForce(-flat.normalized * resist, ForceMode.Force);
         }
 
         // handling.c ProcessCarPad
@@ -150,6 +167,7 @@ namespace BoxBox.Presentation.Vehicles
             }
 
             _thrust = 0f;
+            _engine.UpdatePedal(spec, _throttleInput, steps * StepTime);
             if (_throttleInput < -0.05f)
             {
                 // brakes; reverses once nearly stopped, reverse speed tapers off
@@ -159,7 +177,9 @@ namespace BoxBox.Presentation.Vehicles
             }
             else if (_throttleInput > 0.05f)
             {
-                _thrust = spec.powerRatio * 4915f;
+                // VehicleEngine replaces Driver's constant 4915 thrust; converted to Driver units per rear wheel
+                float perWheelN = _engine.DriveForce(spec, ForwardSpeedMs()) / 2f;
+                _thrust = Mathf.Max(1f, perWheelN / (AccUnitToMs2 * ReferenceMassKg));
             }
         }
 
@@ -317,7 +337,7 @@ namespace BoxBox.Presentation.Vehicles
                     }
                 }
 
-                force += new Vector3(normal.x, 0f, normal.z) * susForce - lf * sidevel - new Vector3(vel.x, 0f, vel.z) * (12f / 4096f);
+                force += new Vector3(normal.x, 0f, normal.z) * susForce - lf * sidevel;   // Driver's linear drag replaced by AddRoadResistance
 
                 float frictionCoef = frictionCoefDry * tiltScale;
                 if (normal.y < 0.8f) frictionCoef *= normal.y * 5f / 4f;   // steep surface

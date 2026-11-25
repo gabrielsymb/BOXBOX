@@ -35,7 +35,11 @@ no código: tudo que diferencia um carro de outro fica num asset `VehicleSpec`.
 |---|---|---|
 | `massKg` | mais pesado = acelera menos, tem velocidade máxima menor e empurra mais nas batidas. A aderência nas curvas e no freio não muda com o peso, como num pneu real | 1350 = carro médio |
 | `centerOfMass` | mais alto = rola e capota mais fácil | 0.55 m |
-| `powerRatio` | força do motor. Aceleração = força ÷ peso | 1.0 com 1350 kg ≈ 133 km/h, 0–100 em ~3,5 s |
+| `wheelPowerKw` | potência que chega na roda (~80% da potência de catálogo). Define a aceleração em velocidade e a máxima | carro 65, caminhonete 85 |
+| `maxDriveForceN` | empurrão máximo na arrancada (1ª marcha/limite do pneu) | carro 8000, caminhonete 9000 |
+| `throttleRiseSeconds` | tempo para o pedal ir de 0 ao fundo segurando W | 0.8–1 s |
+| `dragArea`, `rollingResistance`, `engineBrakeDecel` | ar, rolamento e freio-motor: definem o embalo ao soltar o W e a máxima | carro 0.7/0.012/0.3, caminhonete 1.1/0.015/0.35 |
+| `powerRatio` | força do freio e da ré (Driver) | 1.0 |
 | `traction` | aderência nos dois eixos | 1.0 |
 | `frictionScaleRatio` | aderência geral do tipo de handling | jogador 1.0; perseguidores do Driver 1.4–2.1 |
 | `tyreForceHeight` | altura em que a força do pneu age; menor = capota menos | 0.59 (viatura do Driver); 1.0 = físico puro |
@@ -51,6 +55,13 @@ Ideias de perfil (ainda não testadas):
 - **Caminhão:** `massKg` 3000, `powerRatio` 1.6 → motor 60% mais forte, mas acelera ~72% do carro médio (~96 km/h de máxima).
 - **Carro popular:** `massKg` 1000, `powerRatio` 0.85, `bodySize` 1.7×1.0×3.9.
 - **Esportivo:** `powerRatio` 1.3, `traction` 1.15, `centerOfMass.y` 0.45, `groundClearance` 0.3.
+
+## Motor e embalo (2026-11-24)
+
+O Driver usa empuxo constante + arrasto linear forte: 0–100 em ~3,5 s e o carro quase para ao soltar o W.
+Criador: "o caminhão vai de 0 a 100 num piscar", "não tem embalo". Trocado por `VehicleEngine.cs`:
+força = pedal × mín(empurrão máximo, potência ÷ velocidade); resistência = ar (v²) + rolamento + freio-motor.
+Estimativas: caminhonete vazia 0–100 em ~9,7 s (máx. ~179 km/h), carregada ~12,2 s; carro médio ~9 s.
 
 ## Carga
 

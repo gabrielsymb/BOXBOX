@@ -14,7 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   massKg: 1800
   centerOfMass: {x: 0, y: 0.7, z: 0.2}
-  powerRatio: 1.35
+  wheelPowerKw: 85
+  maxDriveForceN: 9000
+  throttleRiseSeconds: 1
+  powerRatio: 1
+  dragArea: 1.1
+  rollingResistance: 0.015
+  engineBrakeDecel: 0.35
   traction: 0.95
   frictionScaleRatio: 1
   tyreForceHeight: 0.59375

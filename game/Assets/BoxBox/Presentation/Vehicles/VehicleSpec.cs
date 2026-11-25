@@ -17,10 +17,23 @@ namespace BoxBox.Presentation.Vehicles
         [Tooltip("Centre of mass relative to the car origin (origin = ground level under the car at rest).")]
         public Vector3 centerOfMass = new Vector3(0f, 0.55f, 0f);
 
-        [Header("Engine (CAR_COSMETICS.powerRatio / 4096)")]
-        [Tooltip("Engine strength. 1 = baseline Driver engine. Acceleration = power / mass: " +
-                 "a 1350 kg car with 1.0 does ~133 km/h and 0-100 in ~3.5 s.")]
+        [Header("Engine")]
+        [Tooltip("Power that reaches the wheels (about 80% of the brochure engine power). Sets acceleration at speed and top speed.")]
+        public float wheelPowerKw = 65f;
+        [Tooltip("Max push of the driven wheels when launching (first gear / grip limit). 8000 N on 1350 kg = 0.6 g.")]
+        public float maxDriveForceN = 8000f;
+        [Tooltip("Seconds for the throttle to go from 0 to full while W is held. Higher = gentler build-up.")]
+        public float throttleRiseSeconds = 0.8f;
+        [Tooltip("Brake and reverse strength (CAR_COSMETICS.powerRatio / 4096 in Driver).")]
         public float powerRatio = 1f;
+
+        [Header("Resistance (momentum)")]
+        [Tooltip("Drag coefficient x frontal area (m2). Car ~0.7, pickup ~1.1, truck ~5. Sets top speed.")]
+        public float dragArea = 0.7f;
+        [Tooltip("Tyre rolling resistance coefficient. Asphalt ~0.012, heavy tyres ~0.015.")]
+        public float rollingResistance = 0.012f;
+        [Tooltip("Deceleration from the engine when the throttle is released (m/s2). Low = long coasting.")]
+        public float engineBrakeDecel = 0.3f;
 
         [Header("Grip")]
         [Tooltip("CAR_COSMETICS.traction / 4096. Scales grip on both axles.")]
