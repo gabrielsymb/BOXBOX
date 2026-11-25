@@ -54,5 +54,13 @@ namespace BoxBox.Presentation.Vehicles
         public float track = 1.7f;
         [Tooltip("Distance between front and rear axles.")]
         public float wheelbase = 2.7f;
+
+        [Header("Cargo bed (pickup)")]
+        [Tooltip("Length of the open cargo bed at the back. 0 = closed car body, no bed.")]
+        public float bedLength = 0f;
+        [Tooltip("Height of the bed side walls and tailgate above the bed floor.")]
+        public float bedWallHeight = 0.45f;
+        [Tooltip("Height of the chassis slab; its top is the bed floor.")]
+        public float chassisHeight = 0.5f;
     }
 }

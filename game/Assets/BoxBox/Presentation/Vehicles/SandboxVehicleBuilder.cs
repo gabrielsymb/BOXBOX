@@ -12,6 +12,7 @@ namespace BoxBox.Presentation.Vehicles
 
         private VehiclePhysicsController _vehicle;
         private VehicleChaseCamera _camera;
+        private CargoBed _cargo;
 
         private void Start()
         {
@@ -46,36 +47,20 @@ namespace BoxBox.Presentation.Vehicles
         {
             if (vehicleSpec == null) vehicleSpec = ScriptableObject.CreateInstance<VehicleSpec>();
             VehicleSpec spec = vehicleSpec;
-            float bodyBottom = spec.groundClearance;
-            float bodyMid = bodyBottom + spec.bodySize.y / 2f;
-
-            var vehicleObj = new GameObject("PickupTruck_Physics");
+            var vehicleObj = new GameObject(spec.bedLength > 0f ? "Pickup_Physics" : "Car_Physics");
             vehicleObj.transform.position = new Vector3(0f, 0.5f, 0f);
 
             var rb = vehicleObj.AddComponent<Rigidbody>();
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // Chassis Collider. Origin = ground level at rest (Driver places wheel contact points there);
-            // 0.4 m clearance keeps the body off the ground until the springs bottom out.
-            var collider = vehicleObj.AddComponent<BoxCollider>();
-            collider.size = spec.bodySize;
-            collider.center = new Vector3(0f, bodyMid, 0f);
-
-            // Visual Body Placeholder
-            var bodyObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            bodyObj.name = "Chassis_Cabin";
-            bodyObj.transform.SetParent(vehicleObj.transform, false);
-            bodyObj.transform.localPosition = new Vector3(0f, bodyMid + 0.1f, spec.bodySize.z * 0.14f);
-            bodyObj.transform.localScale = new Vector3(spec.bodySize.x * 0.97f, spec.bodySize.y * 1.2f, spec.bodySize.z * 0.5f);
-            Destroy(bodyObj.GetComponent<Collider>());
-
-            var bedObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            bedObj.name = "Chassis_Bed";
-            bedObj.transform.SetParent(vehicleObj.transform, false);
-            bedObj.transform.localPosition = new Vector3(0f, bodyBottom + 0.3f, -spec.bodySize.z * 0.3f);
-            bedObj.transform.localScale = new Vector3(spec.bodySize.x * 0.97f, 0.6f, spec.bodySize.z * 0.4f);
-            Destroy(bedObj.GetComponent<Collider>());
+            // Origin = ground level at rest (Driver places wheel contact points there).
+            Bounds? bed = VehicleBodyBuilder.Build(vehicleObj.transform, spec);
+            if (bed.HasValue)
+            {
+                _cargo = vehicleObj.AddComponent<CargoBed>();
+                _cargo.SetBedVolume(bed.Value);
+            }
 
             // Wheels setup
             var controller = vehicleObj.AddComponent<VehiclePhysicsController>();
@@ -140,6 +125,7 @@ namespace BoxBox.Presentation.Vehicles
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.R)) ResetVehicle();
+            if (Input.GetKeyDown(KeyCode.L) && _cargo != null) _cargo.ToggleLoad();
         }
 
         private void OnGUI()
@@ -147,11 +133,16 @@ namespace BoxBox.Presentation.Vehicles
             if (_vehicle == null) return;
 
             GUI.color = Color.white;
-            GUILayout.BeginArea(new Rect(16f, 16f, 340f, 260f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(16f, 16f, 340f, 300f), GUI.skin.box);
             GUILayout.Label("<b>BOXBOX | Física do Veículo (REDRIVER2)</b>");
             GUILayout.Label($"Velocidade: <b>{_vehicle.SpeedKmh:0} km/h</b>");
             GUILayout.Label($"Esterçamento: <b>{_vehicle.CurrentSteerAngle:0.0}°</b>");
-            GUILayout.Label($"Teclado detectado: <b>{(Input.anyKey ? "SIM" : "NÃO")}</b>");
+            if (_cargo != null)
+            {
+                GUILayout.Label(_cargo.IsLoaded
+                    ? $"Carga: <b>{_cargo.CountOnBoard()}/{_cargo.CrateCount} caixas</b> ({_cargo.LoadedMassKg():0} kg) · L descarrega"
+                    : "Caçamba vazia · L carrega");
+            }
             GUILayout.Space(6f);
 
             GUILayout.Label("<b>Controles na Tela (ou teclado W/A/S/D):</b>");
