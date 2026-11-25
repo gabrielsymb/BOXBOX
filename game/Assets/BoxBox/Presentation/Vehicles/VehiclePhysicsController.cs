@@ -168,12 +168,16 @@ namespace BoxBox.Presentation.Vehicles
 
             _thrust = 0f;
             _engine.UpdatePedal(spec, _throttleInput, steps * StepTime);
-            if (_throttleInput < -0.05f)
+            if (_throttleInput < -0.05f && ForwardSpeedMs() > 0.5f)
             {
-                // brakes; reverses once nearly stopped, reverse speed tapers off
-                float rws = _wheelSpeed * 1500f / 1024f / 4096f;
-                rws = -rws < 23f ? -5000f : (rws + 278f) * -4778f / 256f;
-                _thrust = spec.powerRatio * rws;
+                // Driver brake: full brake force while still rolling forward
+                _thrust = spec.powerRatio * -5000f;
+            }
+            else if (_throttleInput < -0.05f)
+            {
+                // reverse gear (VehicleEngine): Driver's taper relied on the linear drag removed with the engine model
+                float perWheelN = _engine.ReverseForce(spec, ForwardSpeedMs(), _throttleInput) / 2f;
+                _thrust = perWheelN / (AccUnitToMs2 * ReferenceMassKg);
             }
             else if (_throttleInput > 0.05f)
             {

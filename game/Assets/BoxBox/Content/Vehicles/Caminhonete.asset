@@ -18,6 +18,7 @@ MonoBehaviour:
   maxDriveForceN: 9000
   throttleRiseSeconds: 1
   powerRatio: 1
+  maxReverseKmh: 20
   dragArea: 1.1
   rollingResistance: 0.015
   engineBrakeDecel: 0.35

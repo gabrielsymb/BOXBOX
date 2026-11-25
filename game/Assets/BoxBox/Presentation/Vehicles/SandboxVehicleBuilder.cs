@@ -1,3 +1,4 @@
+using BoxBox.Presentation.Supply;
 using UnityEngine;
 
 namespace BoxBox.Presentation.Vehicles
@@ -19,6 +20,15 @@ namespace BoxBox.Presentation.Vehicles
             SetupVehicle();
             SetupCamera();
             SetupTestCourse();
+            SetupSupplyRun();
+        }
+
+        // Grocery around the spawn point, wholesaler ~230 m away: the first playable supply run.
+        private void SetupSupplyRun()
+        {
+            if (_cargo == null) return;
+            _vehicle.gameObject.AddComponent<SupplyRunController>()
+                .Init(_vehicle, _cargo, new Vector3(0f, 0f, 0f), new Vector3(90f, 0f, 210f));
         }
 
         // Ramp + slalom pillars so suspension, weight transfer and slides can be felt.
@@ -125,7 +135,6 @@ namespace BoxBox.Presentation.Vehicles
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.R)) ResetVehicle();
-            if (Input.GetKeyDown(KeyCode.L) && _cargo != null) _cargo.ToggleLoad();
         }
 
         private void OnGUI()
@@ -139,9 +148,7 @@ namespace BoxBox.Presentation.Vehicles
             GUILayout.Label($"Esterçamento: <b>{_vehicle.CurrentSteerAngle:0.0}°</b>");
             if (_cargo != null)
             {
-                GUILayout.Label(_cargo.IsLoaded
-                    ? $"Carga: <b>{_cargo.CountOnBoard()}/{_cargo.CrateCount} caixas</b> ({_cargo.LoadedMassKg():0} kg) · L descarrega"
-                    : "Caçamba vazia · L carrega");
+                GUILayout.Label($"Caçamba: <b>{_cargo.CountOnBoard()}/{_cargo.Capacity} caixas</b> ({_cargo.LoadedMassKg():0} kg)");
             }
             GUILayout.Space(6f);
 

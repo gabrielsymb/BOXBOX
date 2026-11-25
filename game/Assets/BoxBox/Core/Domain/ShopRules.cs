@@ -28,36 +28,55 @@ namespace BoxBox.Domain
                 definitions[i] = product;
             }
 
-            return new ShopState(definitions, openingCash.Cents, dailyCustomerCount);
+            var state = new ShopState(definitions, openingCash.Cents, dailyCustomerCount);
+            RestockWholesaler(state);
+            return state;
         }
 
-        public static OperationResult PlaceOrder(ShopState state, IReadOnlyList<int> quantities)
+        public static OperationResult LeaveForWholesaler(ShopState state)
         {
-            if (state.Phase != ShopPhase.PlanningOrder)
+            return Transition(state, ShopPhase.AtStore, ShopPhase.DrivingToWholesaler);
+        }
+
+        public static OperationResult ArriveAtWholesaler(ShopState state)
+        {
+            return Transition(state, ShopPhase.DrivingToWholesaler, ShopPhase.AtWholesaler);
+        }
+
+        /// <summary>
+        /// Pays at the wholesaler's counter and puts the goods on the vehicle. Can be repeated
+        /// while parked there. Same order as Moonforge BuyFromShopCommandHandler: validate
+        /// quantities, check the seller's stock, check funds, then apply every change at once.
+        /// </summary>
+        public static OperationResult BuyAtWholesaler(ShopState state, IReadOnlyList<int> quantities)
+        {
+            if (state.Phase != ShopPhase.AtWholesaler)
                 return OperationResult.Failure(OperationCode.WrongPhase);
             if (quantities == null || quantities.Count != state.Products.Count)
                 return OperationResult.Failure(OperationCode.InvalidOrder);
 
             long totalCents = 0;
             bool hasQuantity = false;
-            for (int i = 0; i < quantities.Count; i++)
+            var nextCargo = new int[quantities.Count];
+            try
             {
-                int quantity = quantities[i];
-                ProductDefinition product = state.Products[i];
-                if (quantity < 0 || quantity > product.MaximumOrderQuantity)
-                    return OperationResult.Failure(OperationCode.InvalidOrder);
-                if (quantity == 0)
-                    continue;
+                for (int i = 0; i < quantities.Count; i++)
+                {
+                    int quantity = quantities[i];
+                    ProductDefinition product = state.Products[i];
+                    if (quantity < 0 || quantity > product.MaximumOrderQuantity)
+                        return OperationResult.Failure(OperationCode.InvalidOrder);
+                    if (quantity > state.WholesalerStockAt(i))
+                        return OperationResult.Failure(OperationCode.OutOfStock);
 
-                hasQuantity = true;
-                try
-                {
+                    hasQuantity |= quantity > 0;
                     totalCents = checked(totalCents + checked(product.WholesaleCost.Cents * quantity));
+                    nextCargo[i] = checked(state.CargoAt(i) + quantity);
                 }
-                catch (OverflowException)
-                {
-                    return OperationResult.Failure(OperationCode.ArithmeticOverflow);
-                }
+            }
+            catch (OverflowException)
+            {
+                return OperationResult.Failure(OperationCode.ArithmeticOverflow);
             }
 
             if (!hasQuantity)
@@ -66,59 +85,93 @@ namespace BoxBox.Domain
                 return OperationResult.Failure(OperationCode.InsufficientFunds);
 
             state.Cash = new Money(state.Cash.Cents - totalCents);
-            state.SupplierPurchases = new Money(totalCents);
+            state.SupplierPurchases = new Money(state.SupplierPurchases.Cents + totalCents);
             for (int i = 0; i < quantities.Count; i++)
-                state.SetOrder(i, quantities[i]);
-            state.Phase = ShopPhase.DrivingToWholesaler;
+            {
+                state.SetWholesalerStock(i, state.WholesalerStockAt(i) - quantities[i]);
+                state.SetCargo(i, nextCargo[i]);
+            }
             return OperationResult.Success();
         }
 
-        public static OperationResult ArriveAtWholesaler(ShopState state)
+        public static OperationResult LeaveWholesaler(ShopState state)
         {
-            return Transition(state, ShopPhase.DrivingToWholesaler, ShopPhase.PickupPending);
+            return Transition(state, ShopPhase.AtWholesaler, ShopPhase.DrivingToStore);
         }
 
-        public static OperationResult LoadCargo(ShopState state)
-        {
-            return Transition(state, ShopPhase.PickupPending, ShopPhase.DrivingToStore);
-        }
-
+        /// <summary>
+        /// Arriving with an empty vehicle skips the unload step. Coming back before reaching
+        /// the wholesaler just cancels the trip.
+        /// </summary>
         public static OperationResult ArriveAtStore(ShopState state)
         {
-            return Transition(state, ShopPhase.DrivingToStore, ShopPhase.UnloadPending);
+            if (state.Phase == ShopPhase.DrivingToWholesaler)
+                return Transition(state, ShopPhase.DrivingToWholesaler, ShopPhase.AtStore);
+            return Transition(state, ShopPhase.DrivingToStore,
+                state.HasCargo ? ShopPhase.UnloadPending : ShopPhase.AtStore);
         }
 
-        public static OperationResult UnloadCargo(ShopState state)
+        /// <summary>
+        /// Moves what physically arrived into the store. delivered[i] is how many units of
+        /// product i are still on the vehicle; the rest of the cargo was lost on the way and
+        /// its wholesale cost is recorded as a loss (it was already paid for).
+        /// </summary>
+        public static OperationResult UnloadCargo(ShopState state, IReadOnlyList<int> delivered)
         {
             if (state.Phase != ShopPhase.UnloadPending)
                 return OperationResult.Failure(OperationCode.WrongPhase);
+            if (delivered == null || delivered.Count != state.Products.Count)
+                return OperationResult.Failure(OperationCode.InvalidDelivery);
 
             var nextInventory = new int[state.Products.Count];
-            for (int i = 0; i < state.Products.Count; i++)
+            long lostCents = 0;
+            int lostUnits = 0;
+            try
             {
-                try
+                for (int i = 0; i < state.Products.Count; i++)
                 {
-                    nextInventory[i] = checked(state.InventoryAtIndex(i) + state.OrderAtIndex(i));
+                    int units = delivered[i];
+                    if (units < 0 || units > state.CargoAt(i))
+                        return OperationResult.Failure(OperationCode.InvalidDelivery);
+
+                    int lost = state.CargoAt(i) - units;
+                    nextInventory[i] = checked(state.InventoryAt(i) + units);
+                    lostCents = checked(lostCents + checked(state.Products[i].WholesaleCost.Cents * lost));
+                    lostUnits = checked(lostUnits + lost);
                 }
-                catch (OverflowException)
-                {
-                    return OperationResult.Failure(OperationCode.ArithmeticOverflow);
-                }
+                lostCents = checked(state.LostGoods.Cents + lostCents);
+                lostUnits = checked(state.UnitsLost + lostUnits);
+            }
+            catch (OverflowException)
+            {
+                return OperationResult.Failure(OperationCode.ArithmeticOverflow);
             }
 
             for (int i = 0; i < state.Products.Count; i++)
             {
                 state.SetInventory(i, nextInventory[i]);
-                state.SetOrder(i, 0);
+                state.SetCargo(i, 0);
             }
-
-            state.Phase = ShopPhase.ReadyToOpen;
+            state.LostGoods = new Money(lostCents);
+            state.UnitsLost = lostUnits;
+            state.Phase = ShopPhase.AtStore;
             return OperationResult.Success();
+        }
+
+        /// <summary>
+        /// Refills the wholesaler to each product's WholesalerStock, like Moonforge
+        /// ShopCommandHelpers.EnsureRestocked resets limited entries to MaxStock.
+        /// Called when a business day starts.
+        /// </summary>
+        public static void RestockWholesaler(ShopState state)
+        {
+            for (int i = 0; i < state.Products.Count; i++)
+                state.SetWholesalerStock(i, state.Products[i].WholesalerStock);
         }
 
         public static OperationResult OpenStore(ShopState state)
         {
-            return Transition(state, ShopPhase.ReadyToOpen, ShopPhase.Open);
+            return Transition(state, ShopPhase.AtStore, ShopPhase.Open);
         }
 
         public static OperationResult SetRetailPrice(ShopState state, string productId, Money price)
@@ -144,8 +197,8 @@ namespace BoxBox.Domain
                 return OperationResult.Failure(OperationCode.UnknownProduct);
 
             ProductDefinition product = state.Products[index];
-            int inventory = state.InventoryAtIndex(index);
-            Money price = state.RetailPriceAtIndex(index);
+            int inventory = state.InventoryAt(index);
+            Money price = state.RetailPriceAt(index);
             switch (decision.Outcome)
             {
                 case CustomerOutcome.BoughtFromPlayer:
@@ -203,6 +256,8 @@ namespace BoxBox.Domain
                 state.SalesRevenue,
                 cogs,
                 grossProfit,
+                state.LostGoods,
+                state.UnitsLost,
                 state.Cash,
                 unitsSold,
                 state.CustomersProcessed,
@@ -229,7 +284,7 @@ namespace BoxBox.Domain
 
             state.Cash = new Money(nextCash);
             state.SalesRevenue = new Money(nextRevenue);
-            state.SetInventory(index, state.InventoryAtIndex(index) - 1);
+            state.SetInventory(index, state.InventoryAt(index) - 1);
             state.SetUnitsSold(index, nextUnitsSold);
             state.CustomersProcessed++;
             return OperationResult.Success();

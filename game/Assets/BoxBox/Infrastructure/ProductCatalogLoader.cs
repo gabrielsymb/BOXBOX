@@ -48,7 +48,8 @@ namespace BoxBox.Infrastructure
                     entry.customerWillingnessCents,
                     entry.demandWeight,
                     entry.initialOrderQuantity,
-                    entry.maximumOrderQuantity);
+                    entry.maximumOrderQuantity,
+                    entry.wholesalerStock);
             }
 
             return new ProductCatalog(
@@ -77,6 +78,7 @@ namespace BoxBox.Infrastructure
             public int demandWeight;
             public int initialOrderQuantity;
             public int maximumOrderQuantity;
+            public int wholesalerStock;
         }
     }
 }

@@ -11,7 +11,8 @@
       "customerWillingnessCents": 500,
       "demandWeight": 5,
       "initialOrderQuantity": 12,
-      "maximumOrderQuantity": 40
+      "maximumOrderQuantity": 40,
+      "wholesalerStock": 30
     },
     {
       "id": "bread",
@@ -22,7 +23,8 @@
       "customerWillingnessCents": 700,
       "demandWeight": 4,
       "initialOrderQuantity": 10,
-      "maximumOrderQuantity": 40
+      "maximumOrderQuantity": 40,
+      "wholesalerStock": 24
     },
     {
       "id": "snack",
@@ -33,7 +35,8 @@
       "customerWillingnessCents": 600,
       "demandWeight": 3,
       "initialOrderQuantity": 8,
-      "maximumOrderQuantity": 40
+      "maximumOrderQuantity": 40,
+      "wholesalerStock": 20
     }
   ]
 }

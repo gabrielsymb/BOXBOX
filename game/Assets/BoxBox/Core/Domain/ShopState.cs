@@ -3,14 +3,17 @@ using System.Collections.Generic;
 
 namespace BoxBox.Domain
 {
+    /// <summary>
+    /// Where the supply run stands. The day starts parked at the store; the player can make
+    /// as many wholesaler trips as they want before opening.
+    /// </summary>
     public enum ShopPhase
     {
-        PlanningOrder,
+        AtStore,
         DrivingToWholesaler,
-        PickupPending,
+        AtWholesaler,
         DrivingToStore,
         UnloadPending,
-        ReadyToOpen,
         Open,
         Closed
     }
@@ -21,7 +24,8 @@ namespace BoxBox.Domain
         private readonly IReadOnlyList<ProductDefinition> _productView;
         private readonly Dictionary<string, int> _productIndices;
         private readonly int[] _inventory;
-        private readonly int[] _order;
+        private readonly int[] _cargo;
+        private readonly int[] _wholesalerStock;
         private readonly int[] _unitsSold;
         private readonly long[] _retailPrices;
         private readonly int _dailyCustomerCount;
@@ -31,6 +35,9 @@ namespace BoxBox.Domain
         public Money Cash { get; internal set; }
         public Money SupplierPurchases { get; internal set; }
         public Money SalesRevenue { get; internal set; }
+        /// <summary>Wholesale cost of goods paid for but lost on the road.</summary>
+        public Money LostGoods { get; internal set; }
+        public int UnitsLost { get; internal set; }
         public int CustomersProcessed { get; internal set; }
         public int CompetitorChoices { get; internal set; }
         public int PassedCustomers { get; internal set; }
@@ -45,14 +52,16 @@ namespace BoxBox.Domain
             _dailyCustomerCount = dailyCustomerCount;
             _productIndices = new Dictionary<string, int>(StringComparer.Ordinal);
             _inventory = new int[products.Length];
-            _order = new int[products.Length];
+            _cargo = new int[products.Length];
+            _wholesalerStock = new int[products.Length];
             _unitsSold = new int[products.Length];
             _retailPrices = new long[products.Length];
             OpeningCash = new Money(openingCashCents);
             Cash = OpeningCash;
             SupplierPurchases = Money.Zero;
             SalesRevenue = Money.Zero;
-            Phase = ShopPhase.PlanningOrder;
+            LostGoods = Money.Zero;
+            Phase = ShopPhase.AtStore;
 
             for (int i = 0; i < products.Length; i++)
             {
@@ -72,31 +81,26 @@ namespace BoxBox.Domain
             return _productIndices.TryGetValue(productId, out index);
         }
 
-        public int InventoryAt(int index)
+        public int InventoryAt(int index) => _inventory[index];
+        /// <summary>Units bought and paid for that are on the vehicle, not yet in the store.</summary>
+        public int CargoAt(int index) => _cargo[index];
+        public int WholesalerStockAt(int index) => _wholesalerStock[index];
+        public int UnitsSoldAt(int index) => _unitsSold[index];
+        public Money RetailPriceAt(int index) => new Money(_retailPrices[index]);
+
+        public bool HasCargo
         {
-            return _inventory[index];
+            get
+            {
+                foreach (int units in _cargo)
+                    if (units > 0) return true;
+                return false;
+            }
         }
 
-        public int OrderedAt(int index)
-        {
-            return _order[index];
-        }
-
-        public int UnitsSoldAt(int index)
-        {
-            return _unitsSold[index];
-        }
-
-        public Money RetailPriceAt(int index)
-        {
-            return new Money(_retailPrices[index]);
-        }
-
-        internal int InventoryAtIndex(int index) => _inventory[index];
-        internal int OrderAtIndex(int index) => _order[index];
-        internal Money RetailPriceAtIndex(int index) => new Money(_retailPrices[index]);
         internal void SetInventory(int index, int value) => _inventory[index] = value;
-        internal void SetOrder(int index, int value) => _order[index] = value;
+        internal void SetCargo(int index, int value) => _cargo[index] = value;
+        internal void SetWholesalerStock(int index, int value) => _wholesalerStock[index] = value;
         internal void SetUnitsSold(int index, int value) => _unitsSold[index] = value;
         internal void SetRetailPrice(int index, long value) => _retailPrices[index] = value;
 

@@ -39,7 +39,8 @@ no código: tudo que diferencia um carro de outro fica num asset `VehicleSpec`.
 | `maxDriveForceN` | empurrão máximo na arrancada (1ª marcha/limite do pneu) | carro 8000, caminhonete 9000 |
 | `throttleRiseSeconds` | tempo para o pedal ir de 0 ao fundo segurando W | 0.8–1 s |
 | `dragArea`, `rollingResistance`, `engineBrakeDecel` | ar, rolamento e freio-motor: definem o embalo ao soltar o W e a máxima | carro 0.7/0.012/0.3, caminhonete 1.1/0.015/0.35 |
-| `powerRatio` | força do freio e da ré (Driver) | 1.0 |
+| `powerRatio` | força do freio (Driver) | 1.0 |
+| `maxReverseKmh` | velocidade máxima de ré (motor próprio, a ré do Driver dependia do arrasto linear removido) | 22 |
 | `traction` | aderência nos dois eixos | 1.0 |
 | `frictionScaleRatio` | aderência geral do tipo de handling | jogador 1.0; perseguidores do Driver 1.4–2.1 |
 | `tyreForceHeight` | altura em que a força do pneu age; menor = capota menos | 0.59 (viatura do Driver); 1.0 = físico puro |
@@ -73,7 +74,9 @@ Caminhonete vazia: 1800 kg, motor 1.35 → acelera como o carro médio. Carregad
 
 ## Controles (teclado)
 
-W acelera · S freia/ré · A/D esterça (toque = curva suave, segurar = mais fechada; vira menos em alta velocidade) · Shift+A/D curva fechada rápida · Espaço freio de mão · L carrega/descarrega a caçamba (SandboxLab) · C troca câmera · R reseta (só na SandboxLab, ferramenta de teste)
+W acelera · S freia/ré · A/D esterça (toque = curva suave, segurar = mais fechada; vira menos em alta velocidade) · Shift+A/D curva fechada rápida · Espaço freio de mão · C troca câmera · R reseta (só na SandboxLab, ferramenta de teste)
+
+Compra e descarga de caixas: ver [SUPPLY_RUN.md](./SUPPLY_RUN.md).
 
 ## Histórico de testes
 

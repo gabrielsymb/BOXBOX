@@ -24,8 +24,10 @@ namespace BoxBox.Presentation.Vehicles
         public float maxDriveForceN = 8000f;
         [Tooltip("Seconds for the throttle to go from 0 to full while W is held. Higher = gentler build-up.")]
         public float throttleRiseSeconds = 0.8f;
-        [Tooltip("Brake and reverse strength (CAR_COSMETICS.powerRatio / 4096 in Driver).")]
+        [Tooltip("Brake strength (CAR_COSMETICS.powerRatio / 4096 in Driver).")]
         public float powerRatio = 1f;
+        [Tooltip("Top speed in reverse gear. Real cars: ~20-30 km/h.")]
+        public float maxReverseKmh = 22f;
 
         [Header("Resistance (momentum)")]
         [Tooltip("Drag coefficient x frontal area (m2). Car ~0.7, pickup ~1.1, truck ~5. Sets top speed.")]

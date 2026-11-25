@@ -7,6 +7,11 @@ namespace BoxBox.Domain
         public Money SalesRevenue { get; }
         public Money CostOfGoodsSold { get; }
         public Money GrossProfit { get; }
+        /// <summary>Wholesale cost of cargo lost on the road.</summary>
+        public Money LostGoods { get; }
+        public int UnitsLost { get; }
+        /// <summary>Gross profit minus lost cargo.</summary>
+        public Money NetProfit => GrossProfit - LostGoods;
         public Money ClosingCash { get; }
         public int UnitsSold { get; }
         public int CustomersProcessed { get; }
@@ -20,6 +25,8 @@ namespace BoxBox.Domain
             Money salesRevenue,
             Money costOfGoodsSold,
             Money grossProfit,
+            Money lostGoods,
+            int unitsLost,
             Money closingCash,
             int unitsSold,
             int customersProcessed,
@@ -32,6 +39,8 @@ namespace BoxBox.Domain
             SalesRevenue = salesRevenue;
             CostOfGoodsSold = costOfGoodsSold;
             GrossProfit = grossProfit;
+            LostGoods = lostGoods;
+            UnitsLost = unitsLost;
             ClosingCash = closingCash;
             UnitsSold = unitsSold;
             CustomersProcessed = customersProcessed;

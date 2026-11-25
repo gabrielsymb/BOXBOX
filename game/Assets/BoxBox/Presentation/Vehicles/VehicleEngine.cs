@@ -34,6 +34,17 @@ namespace BoxBox.Presentation.Vehicles
             return _throttle * Mathf.Min(spec.maxDriveForceN, powerLimited);
         }
 
+        /// <summary>
+        /// Reverse gear pull in newtons (negative = backwards). Strong at standstill, fading to
+        /// zero at spec.maxReverseKmh, so reversing has a real top speed.
+        /// </summary>
+        public float ReverseForce(VehicleSpec spec, float speedMs, float input)
+        {
+            float backwardsMs = Mathf.Max(0f, -speedMs);
+            float fade = Mathf.Clamp01(1f - backwardsMs / Mathf.Max(1f, spec.maxReverseKmh / 3.6f));
+            return -Mathf.Clamp01(-input) * spec.maxDriveForceN * 0.6f * fade;
+        }
+
         /// <summary>Force opposing forward motion (air + rolling + engine braking), in newtons, >= 0.</summary>
         public float ResistanceForce(VehicleSpec spec, float speedMs, float massKg)
         {

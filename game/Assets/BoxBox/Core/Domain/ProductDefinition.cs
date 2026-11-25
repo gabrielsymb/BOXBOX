@@ -13,6 +13,8 @@ namespace BoxBox.Domain
         public int DemandWeight { get; }
         public int InitialOrderQuantity { get; }
         public int MaximumOrderQuantity { get; }
+        /// <summary>Units the wholesaler holds after each restock (Moonforge ShopEntryDefinition.MaxStock).</summary>
+        public int WholesalerStock { get; }
 
         public ProductDefinition(
             string id,
@@ -23,7 +25,8 @@ namespace BoxBox.Domain
             long customerWillingnessCents,
             int demandWeight,
             int initialOrderQuantity,
-            int maximumOrderQuantity)
+            int maximumOrderQuantity,
+            int wholesalerStock)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("Product id is required.", nameof(id));
@@ -38,6 +41,8 @@ namespace BoxBox.Domain
                 throw new ArgumentOutOfRangeException(nameof(demandWeight));
             if (maximumOrderQuantity <= 0 || maximumOrderQuantity > 1000)
                 throw new ArgumentOutOfRangeException(nameof(maximumOrderQuantity));
+            if (wholesalerStock <= 0 || wholesalerStock > 100_000)
+                throw new ArgumentOutOfRangeException(nameof(wholesalerStock));
             if (initialOrderQuantity < 0 || initialOrderQuantity > maximumOrderQuantity)
                 throw new ArgumentOutOfRangeException(nameof(initialOrderQuantity));
 
@@ -50,6 +55,7 @@ namespace BoxBox.Domain
             DemandWeight = demandWeight;
             InitialOrderQuantity = initialOrderQuantity;
             MaximumOrderQuantity = maximumOrderQuantity;
+            WholesalerStock = wholesalerStock;
         }
     }
 }

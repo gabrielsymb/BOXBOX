@@ -10,7 +10,9 @@ namespace BoxBox.Domain
         InvalidPrice,
         NoCustomersRemaining,
         InvalidCustomerChoice,
-        ArithmeticOverflow
+        ArithmeticOverflow,
+        OutOfStock,
+        InvalidDelivery
     }
 
     public readonly struct OperationResult
